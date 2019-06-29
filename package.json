@@ -1,0 +1,15 @@
+{
+  "name": "certtify-zero-eth",
+  "version": "0.1.0",
+  "description": "Ethereum contract for Certtify Zero",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ethereum",
+    "certtify"
+  ],
+  "author": "Ken Sze",
+  "license": "Apache-2.0"
+}
