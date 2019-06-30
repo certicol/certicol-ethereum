@@ -1,15 +1,26 @@
 {
-  "name": "certtify-zero-eth",
-  "version": "0.1.0",
-  "description": "Ethereum contract for Certtify Zero",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [
-    "ethereum",
-    "certtify"
-  ],
-  "author": "Ken Sze",
-  "license": "Apache-2.0"
+	"name": "certtify-zero-eth",
+	"version": "0.1.0",
+	"description": "Ethereum contract for Certtify Zero",
+	"main": "index.js",
+	"scripts": {
+		"test": "run-p test:** --race --silent",
+		"test:env": "truffle develop",
+		"test:mocha": "truffle test",
+		"coverage": "solidity-coverage"
+	},
+	"keywords": [
+		"ethereum",
+		"certtify"
+	],
+	"author": "Ken Sze",
+	"license": "Apache-2.0",
+	"dependencies": {
+		"chai": "^4.2.0",
+		"npm-run-all": "^4.1.5",
+		"openzeppelin-solidity": "^2.3.0",
+		"openzeppelin-test-helpers": "^0.4.0",
+		"solidity-coverage": "0.6.0-beta.5",
+		"truffle": "^5.0.25"
+	}
 }
