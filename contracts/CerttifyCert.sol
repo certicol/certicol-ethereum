@@ -14,20 +14,20 @@ import '../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol';
  */
 contract CerttifyCert is ERC721Full {
 
-    // Define metadata according to ERC-721
+    /// Define metadata according to ERC-721
     string constant NAME = "Certtify Certificate";
     string constant SYMBOL = "CTC";
 
-    // Mapping from certificate ID to certificate issuer
+    /// Mapping from certificate ID to certificate issuer
     mapping(uint256 => address) private _certIssuser;
     // Mapping from certificate ID to whether it is revocable
     mapping(uint256 => bool) private _certRevocable;
     // Mapping from certificate ID to whether it is revoked
     mapping(uint256 => bool) private _certRevoked;
 
-    // Certificate issuing event - storing its content, expiry block, hash flag, and OPC flag
+    /// Certificate issuing event - storing its content, expiry block, hash flag, and OPC flag
     event IssueCert(uint256 indexed certId, bytes cert, uint256 expiryBlock, bool isHashed, bool isOPC);
-    // Certificate revoking event
+    /// Certificate revoking event
     event RevokeCert(uint256 indexed certId);
 
     /**
@@ -38,12 +38,12 @@ contract CerttifyCert is ERC721Full {
 
     /**
      * @notice Issue a certificate in accordance to the Certtify Zero protocol
-     * @param cert The content of the certificate to be stored in the blockchain
-     * @param receiver The receiver of the certificate. Setting it to the NO-RECEIVER-ADDRESS address would indicate the certificate has no direct receiver on the blockchain.
-     * @param expiryBlock The block number where the certificate would expire. Setting it to 0 would indicate the certificate will not expire.
-     * @param revocable Setting this to true would grant msg.sender the right to revoke this certificate after issuing.
-     * @param isHashed Flag that stated whether the certificate content is hashed or not. Pass false if the content is in clear-text.
-     * @param isOPC Flag that stated whether proof-of-ownership is required upon validation. Pass false if the content alone is sufficient upon validation.
+     * @param cert bytes content of the certificate to be stored in the blockchain
+     * @param receiver address receiver of the certificate; setting it to the NO-RECEIVER-ADDRESS address would indicate the certificate has no direct receiver on the blockchain
+     * @param expiryBlock uint256 block number where the certificate would expire; setting it to 0 would indicate the certificate will not expire
+     * @param revocable bool grant msg.sender the right to revoke this certificate after issuing if true
+     * @param isHashed bool flag that stated whether the certificate content is hashed or not; pass false if the content is in clear-text.
+     * @param isOPC bool flag that stated whether proof-of-ownership is required upon validation; pass false if the content alone is sufficient upon validation.
      */
     function issueCert(bytes calldata cert, address receiver, uint256 expiryBlock, bool revocable, bool isHashed, bool isOPC) external {
         // Compute an unique hash for the certificate by sha3(cert_content, block_number)
@@ -59,7 +59,7 @@ contract CerttifyCert is ERC721Full {
 
     /**
      * @notice Revoke an issued certificate. This function is only available if the certificate is revocable and if msg.sender is the issuer of the certificate.
-     * @param certId The certificate ID of the certificate queried
+     * @param certId uint256 certificate ID of the certificate queried
      */
     function revokeCert(uint256 certId) external {
         // Revoking a certificate MUST flow if the certificate is NOT revocable, or if msg.sender != issuer
@@ -81,7 +81,7 @@ contract CerttifyCert is ERC721Full {
 
     /**
      * @notice List the current status of a certificate in accordance to the Certtify Zero protocol
-     * @param certId The certificate ID of the certificate queried
+     * @param certId uint256 certificate ID of the certificate queried
      * @return List of the issuer, receiver ,revocable, revoked status of the certificate
      */
     function getCertStatus(uint256 certId) external view returns (address, address, bool, bool) {

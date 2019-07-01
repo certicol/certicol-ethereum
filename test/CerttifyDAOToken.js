@@ -31,7 +31,7 @@ contract('CerttifyDAOToken', function(accounts) {
     });
 
     it('should create and grant 10,000,000 CDT tokens upon creation', async function() {
-        let initialBalance = new BN("10000000" + "0".repeat(18))
+        let initialBalance = new BN("10000000" + "0".repeat(18));
         let balance = await contractInstance.balanceOf(accounts[0]);
         expect(balance).to.be.bignumber.equal(initialBalance);
         let totalSupply = await contractInstance.totalSupply();
