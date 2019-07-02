@@ -3,6 +3,7 @@ pragma solidity 0.5.3;
 import '../node_modules/openzeppelin-solidity/contracts/token/ERC777/ERC777.sol';
 import '../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol';
 import '../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol';
+import './ICerttifyDAOToken.sol';
 
 /**
  * @title CerttifyDAO Token Contract
@@ -14,7 +15,7 @@ import '../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol';
  *
  * @dev This token contract obeys the ERC-777 standard while being backward compatible to ERC-20 standard.
  */
-contract CerttifyDAOToken is ERC777, Ownable {
+contract CerttifyDAOToken is ERC777, Ownable, ICerttifyDAOToken {
 
     /// Use safe math
     using SafeMath for uint256;
