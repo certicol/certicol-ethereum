@@ -3,7 +3,7 @@ const { BN, expectRevert } = require('openzeppelin-test-helpers');
 const { expect } = require('chai');
 
 // Obtain contract abstractions
-const CerttifyCert = artifacts.require('CerttifyCert')
+const CerttifyCert = artifacts.require('CerttifyCert');
 
 // Test for CerttifyDAOToken.sol
 contract('CerttifyCert', function(accounts) {

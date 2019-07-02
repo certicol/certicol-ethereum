@@ -24,23 +24,20 @@ contract CerttifyDAOToken is ERC777, Ownable, ICerttifyDAOToken {
     string constant TOKEN_NAME = "CerttifyDAO Token";
     string constant SYMBOL = "CDT";
     address[] private DEFAULT_OPERATORS = new address[](0);
-
-    /// Initial token supply is 10,000,000 CDT
-    uint256 private INITIAL_SUPPLY = uint256(10000000).mul(uint256(10**18));
+    
+    /// Define initial supply as 10,000,000 CDT
+    uint256 constant INITIAL_SUPPLY = uint256(10000000);
 
     /**
      * @notice Initialize the CerttifyDAOToken contract
      * @param wallet address address that would receive the initial minted token
-     * @param DAO address address of the CerttifyDAO
      */
-    constructor(address wallet, address DAO) ERC777(TOKEN_NAME, SYMBOL, DEFAULT_OPERATORS) public {
+    constructor(address wallet) ERC777(TOKEN_NAME, SYMBOL, DEFAULT_OPERATORS) public {
         // Check input
         require(wallet != address(0), "CDT: initial token send to the zero address");
-        require(DAO != address(0), "CDT: DAO address cannot be the zero address");
         // Mint initial token supply
-        _mint(msg.sender, wallet, INITIAL_SUPPLY, "", "");
-        // Transfer ownership to CerttifyDAO
-        transferOwnership(DAO);
+        uint256 initialSupply = INITIAL_SUPPLY.mul(uint256(10**18));
+        _mint(msg.sender, wallet, initialSupply, "", "");
     }
 
     /**
