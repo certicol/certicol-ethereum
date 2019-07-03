@@ -42,10 +42,10 @@ contract CerttifyDAO is IERC777Recipient {
     /// Similar to voting rights, PoSaT credit is automatically granted
     /// PoSaT credit can be consumed by either participating the PoSaT mechanism,
     /// thus locking the credit, or by delegating them to another address
-    mapping(address => uint256) private _availablePOSAT;
+    mapping(address => uint256) private _availablePoSaT;
     /// Mapping from address to their locked PoSaT credit, due to participation
     /// in the PoSaT mechanism
-    mapping(address => uint256) private _lockedPOSAT;
+    mapping(address => uint256) private _lockedPoSaT;
 
     /// Mapping from address to each delegated address and the amount of voting rights delegated
     mapping(address => mapping(address => uint256)) private _delegatedVotingRights;
@@ -65,6 +65,10 @@ contract CerttifyDAO is IERC777Recipient {
     event VotingRightsDelegation(address indexed tokenHolder, address indexed delegate, uint256 amount);
     /// Event that will be emitted upon the withdrawl of delegated voting rights
     event VotingRightsDelegationWithdrawl(address indexed tokenHolder, address indexed delegate, uint256 amount);
+    /// Event that will be emitted upon delegation of free PoSaT credits
+    event PoSaTDelegation(address indexed tokenHolder, address indexed delegate, uint256 amount);
+    /// Event that will be emitted upon the withdrawl of delegated PoSaT credits
+    event PoSaTDelegationWithdrawl(address indexed tokenHolder, address indexed delegate, uint256 amount);
 
     /**
      * @notice Initialize the CerttifyDAO contract
@@ -101,7 +105,7 @@ contract CerttifyDAO is IERC777Recipient {
      * @return uint256 the available PoSaT credit owned
      */
     function getAvailablePoSaT(address holder) public view returns (uint256) {
-        return _availablePOSAT[holder];
+        return _availablePoSaT[holder];
     }
 
     /**
@@ -110,7 +114,7 @@ contract CerttifyDAO is IERC777Recipient {
      * @return uint256 the locked PoSaT credit owned
      */
     function getLockedPoSaT(address holder) public view returns (uint256) {
-        return _lockedPOSAT[holder];
+        return _lockedPoSaT[holder];
     }
 
     /**
@@ -163,7 +167,7 @@ contract CerttifyDAO is IERC777Recipient {
         // Modify the internal state upon receiving the tokens
         _tokensLocked[from] = _tokensLocked[from].add(amount);
         _votingRights[from] = _votingRights[from].add(amount);
-        _availablePOSAT[from] = _availablePOSAT[from].add(amount);
+        _availablePoSaT[from] = _availablePoSaT[from].add(amount);
         // Emit TokensLocked event
         emit TokensLocked(from, amount);
     }
@@ -175,9 +179,9 @@ contract CerttifyDAO is IERC777Recipient {
      * @param amount uint256 amount of tokens to withdraw
      */
     function withdrawToken(uint256 amount) external {
-        // Subtract amount from _votingRights and _availablePOSAT
+        // Subtract amount from _votingRights and _availablePoSaT
         _votingRights[msg.sender] = _votingRights[msg.sender].sub(amount);
-        _availablePOSAT[msg.sender] = _availablePOSAT[msg.sender].sub(amount);
+        _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].sub(amount);
         // Successfully subtracted their voting rights and PoSaT credit
         // Proceed with the withdrawl
         _tokensLocked[msg.sender] = _tokensLocked[msg.sender].sub(amount);
@@ -227,6 +231,51 @@ contract CerttifyDAO is IERC777Recipient {
         _votingRights[msg.sender] = _votingRights[msg.sender].add(amount);
         // Emit VotingRightsDelegationWithdrawl
         emit VotingRightsDelegationWithdrawl(msg.sender, delegate, amount);
+    }
+
+    /**
+     * @notice Delegate PoSaT credits from msg.sender to a specific delegate
+     * @dev This function will only proceeds if the msg.sender owns sufficient FREE PoSaT credits,
+     * and if total voting rights delegated after operation would not exceeds the amount of tokens locked
+     * to avoid secondary delegation
+     * @param delegate address address of the delegate
+     * @param amount uint256 amount of voting rights to delegate
+     */
+    function delegatePoSaT(address delegate, uint256 amount) external {
+        // Check if total PoSaT delegated after operation would exceeds the amount of tokens
+        require(
+            _delegatedNetPoSaT[msg.sender].add(amount) <= _tokensLocked[msg.sender],
+            "CDAO: insufficient PoSaT credits or secondary delegation is not permitted"
+        );
+        // Transfer free PoSaT credits to delegate
+        _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].sub(amount);
+        _availablePoSaT[delegate] = _availablePoSaT[delegate].add(amount);
+        // Add the delegate record to _delegatedPoSaT and _delegatedNetPoSaT
+        _delegatedPoSaT[msg.sender][delegate] = _delegatedPoSaT[msg.sender][delegate].add(amount);
+        _delegatedNetPoSaT[msg.sender] = _delegatedNetPoSaT[msg.sender].add(amount);
+        // Emit PoSaTDelegation
+        emit PoSaTDelegation(msg.sender, delegate, amount);
+    }
+
+    /**
+     * @notice Withdraw delegated PoSaT credits from a specific delegate
+     * @dev This function will reverts if amount > PoSaT credits delegated to the delegate,
+     * or if the delegate does not have the required FREE PoSaT credits
+     * @param delegate address address of the delegate
+     * @param amount uint256 amount of delegated voting rights to withdraw from the delegate
+     */
+    function withdrawDelegatedPoSaT(address delegate, uint256 amount) external {
+        // Reduce the amount from _delegatedPoSaT and _delegatedNetPoSaT
+        // This will also revert if amount exceeds the PoSaT credits initially delegated
+        _delegatedPoSaT[msg.sender][delegate] = _delegatedPoSaT[msg.sender][delegate].sub(amount);
+        _delegatedNetPoSaT[msg.sender] = _delegatedNetPoSaT[msg.sender].sub(amount);
+        // Transfer PoSaT credits back to msg.sender
+        // Unlike voting rights, PoSaT credits can be locked by the delegate by participating in the PoSaT mechanism
+        // The withdrawl of delegated PoSaT credits will only work if the delegate has sufficient free PoSaT credits
+        _availablePoSaT[delegate] = _availablePoSaT[delegate].sub(amount);
+        _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].add(amount);
+        // Emit PoSaTDelegationWithdrawl
+        emit PoSaTDelegationWithdrawl(msg.sender, delegate, amount);
     }
 
 }

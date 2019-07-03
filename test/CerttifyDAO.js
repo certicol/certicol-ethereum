@@ -233,4 +233,121 @@ contract('CerttifyDAO', function(accounts) {
 
     });
 
+    describe('PoSaT Credits Delegation Mechanics', function() {
+
+        // Deploy the contract before each test
+        beforeEach(async function() {
+            tokenInstance = await CerttifyDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            contractInstance = await CerttifyDAO.new(tokenInstance.address); // Deploy DAO contract
+            await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
+            await tokenInstance.transfer(contractInstance.address, 100, { from: accounts[0] }); // 100 tokens is locked from accounts[0] into the contract
+        });
+
+        it('should accept delegation of PoSaT credits', async function() {
+            let tx = await contractInstance.delegatePoSaT(constants.ZERO_ADDRESS, 100, { from: accounts[0] }); // Delegate 100 PoSaT credits to 0x0
+            expectEvent.inLogs(tx.logs, 'PoSaTDelegation', { tokenHolder: accounts[0], delegate: constants.ZERO_ADDRESS, amount: new BN(100) }); // Expected PoSaTDelegation event
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(0)); // Expected 100 - 100 PoSaT credits left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(constants.ZERO_ADDRESS)).to.be.bignumber.equal(new BN(100)); // Expected 100 PoSaT credits (delegated from accounts[0]) in 0x0
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], constants.ZERO_ADDRESS)).to.be.bignumber.equal(new BN(100)); // Expected 100 delegated PoSaT credits from accounts[0] to 0x0
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected a net of 100 delegated PoSaT credits from accounts[0]
+        });
+
+        it('should accept increased delegation of PoSaT credits', async function() {
+            await contractInstance.delegatePoSaT(constants.ZERO_ADDRESS, 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to 0x0
+            await contractInstance.delegatePoSaT(constants.ZERO_ADDRESS, 50, { from: accounts[0] }); // Delegate another 50 PoSaT credits to 0x0
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(0)); // Expected 100 - 50 - 50 PoSaT credits left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(constants.ZERO_ADDRESS)).to.be.bignumber.equal(new BN(100)); // Expected 100 PoSaT credits (delegated from accounts[0]) in 0x0
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], constants.ZERO_ADDRESS)).to.be.bignumber.equal(new BN(100)); // Expected 100 delegated PoSaT credits from accounts[0] to 0x0
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected a net of 100 delegated PoSaT credits from accounts[0]
+        });        
+
+        it('should not accept delegation if it exceeds the amount of PoSaT credits msg.sender owns', async function() {
+            await contractInstance.delegatePoSaT(constants.ZERO_ADDRESS, 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to 0x0
+            await expectRevert(contractInstance.delegatePoSaT(accounts[1], 51, { from: accounts[0] }), 'CDAO: insufficient PoSaT credits or secondary delegation is not permitted');
+            // Reject since msg.sender only have 100 - 50 PoSaT credits left (51 required)
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 PoSaT credits left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(constants.ZERO_ADDRESS)).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits (delegated from accounts[0]) in 0x0
+            expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected 0 PoSaT credits in accounts[1]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], constants.ZERO_ADDRESS)).to.be.bignumber.equal(new BN(50)); // Expected 50 delegated PoSaT credits from accounts[0] to 0x0
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected 0 delegated PoSaT credits from accounts[0] to accounts[1]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected a net of 50 delegated PoSaT credits from accounts[0]
+        });
+
+        it('should not accept secondary delegation', async function() {
+            await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
+            await expectRevert(contractInstance.delegatePoSaT(accounts[2], 25, { from: accounts[1] }), 'CDAO: insufficient PoSaT credits or secondary delegation is not permitted');
+            // Although accounts[1] has 50 PoSaT credits, but since secondary delegation is banned, accounts[1] cannot further delegate 20 PoSaT credits to accounts[2]
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 PoSaT credits left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits (delegated from accounts[0]) in accounts[1]
+            expect(await contractInstance.getAvailablePoSaT(accounts[2])).to.be.bignumber.equal(new BN(0)); // Expected 0 PoSaT credits in accounts[2]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 delegated PoSaT credits from accounts[0] to accounts[1]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[1], accounts[2])).to.be.bignumber.equal(new BN(0)); // Expected 0 delegated PoSaT credits from accounts[1] to accounts[2]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected a net of 50 delegated PoSaT credits from accounts[0]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected a net of 0 delegated PoSaT credits from accounts[1]
+        });
+
+        it('should accept the withdrawl of locked tokens if msg.sender still have sufficient PoSaT credits', async function() {
+            await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
+            await contractInstance.withdrawToken(50, { from: accounts[0] }); // Since accounts[0] only had 50 PoSaT credits, it can withdraw up to 50 CTD, so this should work
+            expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected accounts[0] has 100 - 50 locked tokens only
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(0)); // Expected 100 - 50 - 50 PoSaT credits left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits (delegated from accounts[0]) in accounts[1]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 delegated PoSaT credits from accounts[0] to accounts[1]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected a net of 50 delegated PoSaT credits from accounts[0]
+        });
+
+        it('should not accept the withdrawl of locked tokens if msg.sender does not have sufficient PoSaT credits', async function() {
+            await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
+            await expectRevert(contractInstance.withdrawToken(51, { from: accounts[0] }), 'SafeMath: subtraction overflow');
+            // Since accounts[0] only had 50 PoSaT credits, it can only withdraw up to 50 CTD, so this should fail
+            expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] still has 100 locked tokens
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 PoSaT credits left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits (delegated from accounts[0]) in accounts[1]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 delegated PoSaT credits from accounts[0] to accounts[1]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected a net of 50 delegated PoSaT credits from accounts[0]
+        });
+
+        it('should accept complete withdrawl of delegated PoSaT credits', async function() {
+            await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
+            let tx = await contractInstance.withdrawDelegatedPoSaT(accounts[1], 50, { from: accounts[0] }); // Withdraw 40 delegated PoSaT credits from accounts[1]
+            expectEvent.inLogs(tx.logs, 'PoSaTDelegationWithdrawl', { tokenHolder: accounts[0], delegate: accounts[1], amount: new BN(50) }); // Expected PoSaTDelegationWithdrawl event
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected 100 - 50 + 50 PoSaT credits left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected 50 - 50 PoSaT credits in accounts[1]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected 0 delegated PoSaT credits from accounts[0] to accounts[1]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(0)); // Expected a net of 0 delegated PoSaT credits from accounts[0]
+        });
+
+        it('should accept decreased in delegated PoSaT credits', async function() {
+            await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
+            await contractInstance.withdrawDelegatedPoSaT(accounts[1], 40, { from: accounts[0] }); // Withdraw 40 delegated PoSaT credits from accounts[1]
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(90)); // Expected 100 - 50 + 40 PoSaT credits left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(10)); // Expected 50 - 40 PoSaT credits in accounts[1]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], accounts[1])).to.be.bignumber.equal(new BN(10)); // Expected 10 delegated PoSaT credits from accounts[0] to accounts[1]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(10)); // Expected a net of 10 delegated PoSaT credits from accounts[0]
+        });
+
+        it('should not accept withdrawl of delegated PoSaT credits if amount > total delegated PoSaT credits', async function() {
+            await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
+            await expectRevert(contractInstance.withdrawDelegatedPoSaT(accounts[1], 51, { from: accounts[0] }), 'SafeMath: subtraction overflow');
+            // Withdraw 51 delegated PoSaT credits from accounts[1] which should failed
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 PoSaT credits still left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits still in accounts[1]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 delegated PoSaT credits from accounts[0] to accounts[1]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected a net of 0 delegated PoSaT credits from accounts[0]
+        });
+
+        it('should not accept withdrawl of delegated PoSaT credits if amount > delegated PoSaT credits to the delegate', async function() {
+            await contractInstance.delegatePoSaT(accounts[1], 40, { from: accounts[0] }); // Delegate 40 PoSaT credits to accounts[1]
+            await contractInstance.delegatePoSaT(accounts[2], 40, { from: accounts[0] }); // Delegate 40 PoSaT credits to accounts[2]
+            await expectRevert(contractInstance.withdrawDelegatedPoSaT(accounts[1], 41, { from: accounts[0] }), 'SafeMath: subtraction overflow');
+            // Withdraw 41 delegated PoSaT credits from accounts[1] which should failed since 41 > 40
+            expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(20)); // Expected 100 - 80 PoSaT credits still left in accounts[0]
+            expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(40)); // Expected 40 PoSaT credits still in accounts[1]
+            expect(await contractInstance.getAvailablePoSaT(accounts[2])).to.be.bignumber.equal(new BN(40)); // Expected 40 PoSaT credits still in accounts[2]
+            expect(await contractInstance.getDelegatedPoSaT(accounts[0], accounts[1])).to.be.bignumber.equal(new BN(40)); // Expected 40 delegated PoSaT credits from accounts[0] to accounts[1]
+            expect(await contractInstance.getNetDelegatedPoSaT(accounts[0])).to.be.bignumber.equal(new BN(80)); // Expected a net of 80 delegated PoSaT credits from accounts[0]
+        });
+
+    });
+
 });
