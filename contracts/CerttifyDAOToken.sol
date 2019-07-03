@@ -24,7 +24,7 @@ contract CerttifyDAOToken is ERC777, Ownable, ICerttifyDAOToken {
     string constant TOKEN_NAME = "CerttifyDAO Token";
     string constant SYMBOL = "CDT";
     address[] private DEFAULT_OPERATORS = new address[](0);
-    
+
     /// Define initial supply as 10,000,000 CDT
     uint256 constant INITIAL_SUPPLY = uint256(10000000);
 

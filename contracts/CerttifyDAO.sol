@@ -21,12 +21,12 @@ contract CerttifyDAO is IERC777Recipient {
     using SafeMath for uint256;
 
     /// ERC-1820 registry
-    IERC1820Registry private _erc1820 = 
+    IERC1820Registry private _erc1820 =
         IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
     /// ERC-777 interface hash for receiving tokens as a contract
-    bytes32 constant private TOKENS_RECIPIENT_INTERFACE_HASH = 
+    bytes32 constant private TOKENS_RECIPIENT_INTERFACE_HASH =
         0xb281fc8c12954d22544db45de3159a39272895b169a852b314f9cc762e44c53b; // keccak256("ERC777TokensRecipient")
-    
+
     /// CTD token interface that includes the mintInterest function
     ICerttifyDAOToken private _CTD;
     /// ERC-20 interface of the CTD token
@@ -197,7 +197,10 @@ contract CerttifyDAO is IERC777Recipient {
      */
     function delegateVotingRights(address delegate, uint256 amount) external {
         // Check if total voting rights delegated after operation would exceeds the amount of tokens
-        require(_delegatedNetVotingRights[msg.sender].add(amount) <= _tokensLocked[msg.sender], "CDAO: insufficient voting rights or secondary delegation is not permitted");
+        require(
+            _delegatedNetVotingRights[msg.sender].add(amount) <= _tokensLocked[msg.sender],
+            "CDAO: insufficient voting rights or secondary delegation is not permitted"
+        );
         // Transfer voting rights to delegate
         _votingRights[msg.sender] = _votingRights[msg.sender].sub(amount);
         _votingRights[delegate] = _votingRights[delegate].add(amount);
