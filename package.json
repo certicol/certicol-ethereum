@@ -7,7 +7,9 @@
 		"test": "run-p test:** --race --silent",
 		"test:env": "truffle develop",
 		"test:mocha": "truffle test",
-		"coverage": "solidity-coverage"
+		"coverage": "run-p coverage:** --race --silent",
+		"coverage:testrpc": "testrpc-sc --port 8555 --gasLimit 0xfffffffffff --gasPrice 0x01",
+		"coverage:test": "solidity-coverage"
 	},
 	"keywords": [
 		"ethereum",
