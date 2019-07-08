@@ -4,18 +4,18 @@ import '../node_modules/openzeppelin-solidity/contracts/token/ERC721/ERC721Full.
 import '../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol';
 
 /**
- * @title Certtify Certificate Contract
+ * @title Certicol Certificate Contract
  *
  * @author Ken Sze <acken2@outlook.com>
  *
- * @notice This contracts defines certificate as specified in the Certtify Zero protocol.
+ * @notice This contracts defines certificate as specified in the Certicol protocol.
  *
  * @dev This token contract obeys the ERC-721 standard.
  */
-contract CerttifyCert is ERC721Full {
+contract CerticolCert is ERC721Full {
 
     /// Define metadata according to ERC-721
-    string constant NAME = "Certtify Certificate";
+    string constant NAME = "Certicol Certificate";
     string constant SYMBOL = "CTC";
 
     /// Mapping from certificate ID to certificate issuer
@@ -31,13 +31,13 @@ contract CerttifyCert is ERC721Full {
     event RevokeCert(uint256 indexed certId);
 
     /**
-     * @notice Initialize the CerttifyCert contract
+     * @notice Initialize the CerticolCert contract
      */
     constructor() ERC721Full(NAME, SYMBOL) public {
     }
 
     /**
-     * @notice Issue a certificate in accordance to the Certtify Zero protocol
+     * @notice Issue a certificate in accordance to the Certicol protocol
      * @param cert bytes content of the certificate to be stored in the blockchain
      * @param receiver address receiver of the certificate; setting it to the NO-RECEIVER-ADDRESS address would indicate the certificate has no direct receiver on the blockchain
      * @param expiryBlock uint256 block number where the certificate would expire; setting it to 0 would indicate the certificate will not expire
@@ -72,7 +72,7 @@ contract CerttifyCert is ERC721Full {
     }
 
     /**
-     * @notice Get the receiver address of 'certificate without receiver' in accordance to the Certtify Zero protocol
+     * @notice Get the receiver address of 'certificate without receiver' in accordance to the Certicol protocol
      * @return address that should be used as the receiver when there is no direct receiver in the blockchain
      */
     function noReceiverAddress() external pure returns (address) {
@@ -80,7 +80,7 @@ contract CerttifyCert is ERC721Full {
     }
 
     /**
-     * @notice List the current status of a certificate in accordance to the Certtify Zero protocol
+     * @notice List the current status of a certificate in accordance to the Certicol protocol
      * @param certId uint256 certificate ID of the certificate queried
      * @return List of the issuer, receiver ,revocable, revoked status of the certificate
      */

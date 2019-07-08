@@ -3,25 +3,25 @@ pragma solidity 0.5.3;
 import '../node_modules/openzeppelin-solidity/contracts/token/ERC777/ERC777.sol';
 import '../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol';
 import '../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol';
-import './ICerttifyDAOToken.sol';
+import './ICerticolDAOToken.sol';
 
 /**
- * @title CerttifyDAO Token Contract
+ * @title CerticolDAO Token Contract
  *
  * @author Ken Sze <acken2@outlook.com>
  *
  * @notice This contracts defines a token that grants owners a right to participate in the decentralized governance
- * of Certtify protocol - CerttifyDAO.
+ * of Certicol protocol - CerticolDAO.
  *
  * @dev This token contract obeys the ERC-777 standard while being backward compatible to ERC-20 standard.
  */
-contract CerttifyDAOToken is ERC777, Ownable, ICerttifyDAOToken {
+contract CerticolDAOToken is ERC777, Ownable, ICerticolDAOToken {
 
     /// Use safe math
     using SafeMath for uint256;
 
     /// Define token specification according to ERC-777
-    string constant TOKEN_NAME = "CerttifyDAO Token";
+    string constant TOKEN_NAME = "CerticolDAO Token";
     string constant SYMBOL = "CDT";
     address[] private DEFAULT_OPERATORS = new address[](0);
 
@@ -29,7 +29,7 @@ contract CerttifyDAOToken is ERC777, Ownable, ICerttifyDAOToken {
     uint256 constant INITIAL_SUPPLY = uint256(10000000);
 
     /**
-     * @notice Initialize the CerttifyDAOToken contract
+     * @notice Initialize the CerticolDAOToken contract
      * @param wallet address address that would receive the initial minted token
      */
     constructor(address wallet) ERC777(TOKEN_NAME, SYMBOL, DEFAULT_OPERATORS) public {
@@ -41,7 +41,7 @@ contract CerttifyDAOToken is ERC777, Ownable, ICerttifyDAOToken {
     }
 
     /**
-     * @notice Mint interest for recipient to allow CerttifyDAO to observe the Certtify protocol
+     * @notice Mint interest for recipient to allow CerticolDAO to observe the Certicol protocol
      * @param recipient address address that would receive the minted interest
      * @param amount uint256 amount of interest to be minted
      */

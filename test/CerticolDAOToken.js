@@ -3,10 +3,10 @@ const { singletons, BN, constants, expectRevert } = require('openzeppelin-test-h
 const { expect } = require('chai');
 
 // Obtain contract abstractions
-const CerttifyDAOToken = artifacts.require('CerttifyDAOToken');
+const CerticolDAOToken = artifacts.require('CerticolDAOToken');
 
-// Test for CerttifyDAOToken.sol
-contract('CerttifyDAOToken', function(accounts) {
+// Test for CerticolDAOToken.sol
+contract('CerticolDAOToken', function(accounts) {
 
     // Storing instance of deployed contract
     var contractInstance;
@@ -19,11 +19,11 @@ contract('CerttifyDAOToken', function(accounts) {
 
     // Deploy the contract before each test
     beforeEach(async function() {
-        contractInstance = await CerttifyDAOToken.new(accounts[0], { from: accounts[1] });
+        contractInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] });
     });
 
     it('should not accept address zero as the wallet address', async function() {
-        await expectRevert(CerttifyDAOToken.new(constants.ZERO_ADDRESS, { from: accounts[1] }), "CDT: initial token send to the zero address");
+        await expectRevert(CerticolDAOToken.new(constants.ZERO_ADDRESS, { from: accounts[1] }), "CDT: initial token send to the zero address");
     });
 
     it('should create and grant 10,000,000 CDT tokens upon creation', async function() {

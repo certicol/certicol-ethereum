@@ -3,10 +3,10 @@ const { BN, expectRevert } = require('openzeppelin-test-helpers');
 const { expect } = require('chai');
 
 // Obtain contract abstractions
-const CerttifyCert = artifacts.require('CerttifyCert');
+const CerticolCert = artifacts.require('CerticolCert');
 
-// Test for CerttifyDAOToken.sol
-contract('CerttifyCert', function(accounts) {
+// Test for CerticolDAOToken.sol
+contract('CerticolCert', function(accounts) {
 
     // Storing instance of deployed contract
     var contractInstance;
@@ -18,11 +18,11 @@ contract('CerttifyCert', function(accounts) {
 
     // Deploy the contract before each test
     beforeEach(async function() {
-        contractInstance = await CerttifyCert.new();
+        contractInstance = await CerticolCert.new();
     });
 
     it('should initialize name, symbol and noReceiverAddress correctly', async function() {
-        expect(await contractInstance.name()).to.have.string('Certtify Certificate');
+        expect(await contractInstance.name()).to.have.string('Certicol Certificate');
         expect(await contractInstance.symbol()).to.have.string('CTC');
     });
 
@@ -42,7 +42,7 @@ contract('CerttifyCert', function(accounts) {
         expect(certSpec['1']).to.have.string(noReceiverAddress); // Current certificate owner
         expect(certSpec['2']).to.be.false; // Revocable flag
         expect(certSpec['3']).to.be.false; // Revoked flag
-        // Validate that noReceiverAddress has received the certificate as specified in the Certtify Zero protocol
+        // Validate that noReceiverAddress has received the certificate as specified in the Certicol protocol
         expect(await contractInstance.balanceOf(noReceiverAddress)).to.be.bignumber.equal(new BN("1"));
         expect(await contractInstance.ownerOf(certId)).to.have.string(noReceiverAddress);
     });
@@ -63,7 +63,7 @@ contract('CerttifyCert', function(accounts) {
         expect(certSpec['1']).to.have.string(noReceiverAddress); // Current certificate owner
         expect(certSpec['2']).to.be.true; // Revocable flag
         expect(certSpec['3']).to.be.false; // Revoked flag
-        // Validate that noReceiverAddress has received the certificate as specified in the Certtify Zero protocol
+        // Validate that noReceiverAddress has received the certificate as specified in the Certicol protocol
         expect(await contractInstance.balanceOf(noReceiverAddress)).to.be.bignumber.equal(new BN("1"));
         expect(await contractInstance.ownerOf(certId)).to.have.string(noReceiverAddress);
     });

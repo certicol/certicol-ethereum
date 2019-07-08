@@ -3,11 +3,11 @@ const { singletons, BN, constants, expectEvent, expectRevert } = require('openze
 const { expect } = require('chai');
 
 // Obtain contract abstractions
-const CerttifyDAO = artifacts.require('CerttifyDAO');
-const CerttifyDAOToken = artifacts.require('CerttifyDAOToken');
+const CerticolDAO = artifacts.require('CerticolDAO');
+const CerticolDAOToken = artifacts.require('CerticolDAOToken');
 
-// Test for CerttifyDAOToken.sol
-contract('CerttifyDAO', function(accounts) {
+// Test for CerticolDAOToken.sol
+contract('CerticolDAO', function(accounts) {
 
     // Storing instance of deployed DAO contract
     var contractInstance;
@@ -23,12 +23,12 @@ contract('CerttifyDAO', function(accounts) {
     describe('Initialization and Deployment', function() {
 
         beforeEach(async function() {
-            tokenInstance = await CerttifyDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
-            contractInstance = await CerttifyDAO.new(tokenInstance.address); // Deploy DAO contract
+            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            contractInstance = await CerticolDAO.new(tokenInstance.address); // Deploy DAO contract
             await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
         });
 
-        it('should own CerttifyDAOToken', async function() {
+        it('should own CerticolDAOToken', async function() {
             expect(await tokenInstance.owner()).to.have.string(contractInstance.address); // Expected DAO to own the CTD contract
         });
 
@@ -53,8 +53,8 @@ contract('CerttifyDAO', function(accounts) {
         const INITIAL_SUPPLY = new BN("10000000" + "0".repeat(18));
 
         beforeEach(async function() {
-            tokenInstance = await CerttifyDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
-            contractInstance = await CerttifyDAO.new(tokenInstance.address); // Deploy DAO contract
+            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            contractInstance = await CerticolDAO.new(tokenInstance.address); // Deploy DAO contract
             await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
         });
 
@@ -81,7 +81,7 @@ contract('CerttifyDAO', function(accounts) {
         });
 
         it('should revert token deposit if it is not the designated CTD token', async function() {
-            let fakeTokenInstance = await CerttifyDAOToken.new(accounts[1], { from: accounts[1] }); // Fake CTD token contract
+            let fakeTokenInstance = await CerticolDAOToken.new(accounts[1], { from: accounts[1] }); // Fake CTD token contract
             await expectRevert(fakeTokenInstance.transfer(contractInstance.address, 100, { from: accounts[1] }), 'CDAO: we only accept CTD token');
             // Transfer should failed since it is not the recognized CTD token
             expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(0)); // Expected that DAO contract owns 0 CTD
@@ -120,8 +120,8 @@ contract('CerttifyDAO', function(accounts) {
 
         // Deploy the contract before each test
         beforeEach(async function() {
-            tokenInstance = await CerttifyDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
-            contractInstance = await CerttifyDAO.new(tokenInstance.address); // Deploy DAO contract
+            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            contractInstance = await CerticolDAO.new(tokenInstance.address); // Deploy DAO contract
             await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
             await tokenInstance.transfer(contractInstance.address, 100, { from: accounts[0] }); // 100 tokens is locked from accounts[0] into the contract
         });
@@ -237,8 +237,8 @@ contract('CerttifyDAO', function(accounts) {
 
         // Deploy the contract before each test
         beforeEach(async function() {
-            tokenInstance = await CerttifyDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
-            contractInstance = await CerttifyDAO.new(tokenInstance.address); // Deploy DAO contract
+            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            contractInstance = await CerticolDAO.new(tokenInstance.address); // Deploy DAO contract
             await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
             await tokenInstance.transfer(contractInstance.address, 100, { from: accounts[0] }); // 100 tokens is locked from accounts[0] into the contract
         });

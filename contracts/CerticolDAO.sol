@@ -4,18 +4,18 @@ import '../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol';
 import '../node_modules/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
 import '../node_modules/openzeppelin-solidity/contracts/token/ERC777/IERC777Recipient.sol';
 import '../node_modules/openzeppelin-solidity/contracts/introspection/IERC1820Registry.sol';
-import './ICerttifyDAOToken.sol';
+import './ICerticolDAOToken.sol';
 
 /**
- * @title Certtify DAO Contract
+ * @title Certicol DAO Contract
  *
  * @author Ken Sze <acken2@outlook.com>
  *
- * @notice This contracts defines the Certtify DAO as specified in the Certtify Zero protocol.
+ * @notice This contracts defines the Certicol DAO as specified in the Certicol protocol.
  *
  * @dev This token contract obeys the ERC-1820 standard and uses Orcalize.
  */
-contract CerttifyDAO is IERC777Recipient {
+contract CerticolDAO is IERC777Recipient {
 
     /// Use safe math
     using SafeMath for uint256;
@@ -28,7 +28,7 @@ contract CerttifyDAO is IERC777Recipient {
         0xb281fc8c12954d22544db45de3159a39272895b169a852b314f9cc762e44c53b; // keccak256("ERC777TokensRecipient")
 
     /// CTD token interface that includes the mintInterest function
-    ICerttifyDAOToken private _CTD;
+    ICerticolDAOToken private _CTD;
     /// ERC-20 interface of the CTD token
     IERC20 private _CTD_ERC20;
 
@@ -71,13 +71,13 @@ contract CerttifyDAO is IERC777Recipient {
     event PoSaTDelegationWithdrawl(address indexed tokenHolder, address indexed delegate, uint256 amount);
 
     /**
-     * @notice Initialize the CerttifyDAO contract
+     * @notice Initialize the CerticolDAO contract
      */
     constructor(address tokenAddress) public {
         // Register ERC-777 RECIPIENT_INTERFACE at ERC-1820 registry
         _erc1820.setInterfaceImplementer(address(this), TOKENS_RECIPIENT_INTERFACE_HASH, address(this));
         // Initialize CTD token interface
-        _CTD = ICerttifyDAOToken(tokenAddress);
+        _CTD = ICerticolDAOToken(tokenAddress);
         _CTD_ERC20 = IERC20(tokenAddress);
     }
 
