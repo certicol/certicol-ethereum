@@ -5,11 +5,22 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "run-p test:** --race --silent --aggregate-output",
-		"test:env": "truffle develop",
-		"test:mocha": "truffle test",
+		"test:env": "testrpc-sc --port 9545 --gasLimit 0x6691b7 --gasPrice 0x01 --defaultBalanceEther 1000000 --unlock 0x7A490a716f9033E3B3b51aBEAf579B54ecBffd23 0xe3A6F7295890382b2215A81Da25A1a30F99E391d",
+		"test:provable-bridge": "run-s test-provable-bridge:delay test-provable-bridge:core --silent",
+		"test-provable-bridge:delay": "sleep 10",
+		"test-provable-bridge:core": "ethereum-bridge -H localhost:9545 -a 9 --dev --loglevel error",
+		"test:truffle": "run-s test-truffle:delay test-truffle:core --silent",
+		"test-truffle:delay": "sleep 70",
+		"test-truffle:core": "truffle test --network develop",
+		"posttest": "rm allFiredEvents bridge.log",
 		"coverage": "run-p coverage:** --race --silent --aggregate-output",
-		"coverage:testrpc": "testrpc-sc --port 8555 --gasLimit 0xfffffffffff --gasPrice 0x01 --loglevel error",
-		"coverage:test": "solidity-coverage"
+		"coverage:testrpc": "testrpc-sc --port 8555 --gasLimit 0xfffffffffff --gasPrice 0x01 --defaultBalanceEther 1000000 --unlock 0x7A490a716f9033E3B3b51aBEAf579B54ecBffd23 0xe3A6F7295890382b2215A81Da25A1a30F99E391d",
+		"coverage:provable-bridge": "run-s coverage-provable-bridge:delay coverage-provable-bridge:core --silent",
+		"coverage-provable-bridge:delay": "sleep 10",
+		"coverage-provable-bridge:core": "ethereum-bridge -H localhost:8555 -a 9 --dev --loglevel error",
+		"coverage:test": "run-s coverage-test:delay coverage-test:core --silent",
+		"coverage-test:delay": "sleep 70",
+		"coverage-test:core": "solidity-coverage"
 	},
 	"keywords": [
 		"ethereum",
@@ -23,6 +34,7 @@
 	},
 	"devDependencies": {
 		"chai": "^4.2.0",
+		"ethereum-bridge": "^0.6.2",
 		"npm-run-all": "^4.1.5",
 		"openzeppelin-test-helpers": "^0.4.0",
 		"solidity-coverage": "0.6.0-beta.5",
