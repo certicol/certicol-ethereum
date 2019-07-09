@@ -4,11 +4,11 @@
 	"description": "Ethereum contract for Certicol",
 	"main": "index.js",
 	"scripts": {
-		"test": "run-p test:** --race --silent",
+		"test": "run-p test:** --race --silent --aggregate-output",
 		"test:env": "truffle develop",
 		"test:mocha": "truffle test",
-		"coverage": "run-p coverage:** --race --silent",
-		"coverage:testrpc": "testrpc-sc --port 8555 --gasLimit 0xfffffffffff --gasPrice 0x01",
+		"coverage": "run-p coverage:** --race --silent --aggregate-output",
+		"coverage:testrpc": "testrpc-sc --port 8555 --gasLimit 0xfffffffffff --gasPrice 0x01 --loglevel error",
 		"coverage:test": "solidity-coverage"
 	},
 	"keywords": [
@@ -19,7 +19,7 @@
 	"license": "Apache-2.0",
 	"dependencies": {
 		"openzeppelin-solidity": "^2.3.0",
-		"provable-domain": "certicol/provable-domain"
+		"provable-domain": "^1.0.0"
 	},
 	"devDependencies": {
 		"chai": "^4.2.0",
