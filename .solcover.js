@@ -1,4 +1,4 @@
 module.exports = {
-    copyPackages: ['openzeppelin-solidity'],
-    norpc: true
+    norpc: true,
+    testCommand: 'truffle test --network coverage'
 };

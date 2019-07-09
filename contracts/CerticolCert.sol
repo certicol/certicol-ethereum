@@ -1,7 +1,7 @@
 pragma solidity 0.5.3;
 
-import '../node_modules/openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol';
-import '../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 
 /**
  * @title Certicol Certificate Contract
@@ -12,11 +12,7 @@ import '../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol';
  *
  * @dev This token contract obeys the ERC-721 standard.
  */
-contract CerticolCert is ERC721Full {
-
-    /// Define metadata according to ERC-721
-    string constant NAME = "Certicol Certificate";
-    string constant SYMBOL = "CTC";
+contract CerticolCert is ERC721Full("Certicol Certificate", "CTC") {
 
     /// Mapping from certificate ID to certificate issuer
     mapping(uint256 => address) private _certIssuser;
@@ -29,12 +25,6 @@ contract CerticolCert is ERC721Full {
     event IssueCert(uint256 indexed certId, bytes cert, uint256 expiryBlock, bool isHashed, bool isOPC);
     /// Certificate revoking event
     event RevokeCert(uint256 indexed certId);
-
-    /**
-     * @notice Initialize the CerticolCert contract
-     */
-    constructor() ERC721Full(NAME, SYMBOL) public {
-    }
 
     /**
      * @notice Issue a certificate in accordance to the Certicol protocol

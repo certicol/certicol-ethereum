@@ -1,8 +1,8 @@
 pragma solidity 0.5.3;
 
-import '../node_modules/openzeppelin-solidity/contracts/token/ERC777/ERC777.sol';
-import '../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol';
-import '../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol';
+import 'openzeppelin-solidity/contracts/token/ERC777/ERC777.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
 import './ICerticolDAOToken.sol';
 
 /**

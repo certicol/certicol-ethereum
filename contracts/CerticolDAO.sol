@@ -1,9 +1,9 @@
 pragma solidity 0.5.3;
 
-import '../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol';
-import '../node_modules/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
-import '../node_modules/openzeppelin-solidity/contracts/token/ERC777/IERC777Recipient.sol';
-import '../node_modules/openzeppelin-solidity/contracts/introspection/IERC1820Registry.sol';
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
+import 'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
+import 'openzeppelin-solidity/contracts/token/ERC777/IERC777Recipient.sol';
+import 'openzeppelin-solidity/contracts/introspection/IERC1820Registry.sol';
 import './ICerticolDAOToken.sol';
 
 /**
