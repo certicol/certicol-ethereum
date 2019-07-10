@@ -10,7 +10,7 @@ import './ICerticolCA.sol';
  *
  * @notice This contracts defines the Certicol certificate authority as specified in the Certicol protocol.
  */
-contract CerticolCA is HTTPChallenge(400000), ICerticolCA {
+contract CerticolCA is HTTPChallenge(105276), ICerticolCA {
 
     /// Mapping from certificate issuer address to ring 3 validation status
     mapping(address => bool) private ringThree;
