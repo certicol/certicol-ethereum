@@ -11,7 +11,7 @@ contract('CerticolDAO', function(accounts) {
 
     // Storing instance of deployed DAO contract
     var contractInstance;
-    // Storing instance of deployed CTD token
+    // Storing instance of deployed CDT token
     var tokenInstance;
 
     // Deploy ERC-1820 before any tests since ERC-777 and the DAO is dependent upon it
@@ -23,13 +23,13 @@ contract('CerticolDAO', function(accounts) {
     describe('Initialization and Deployment', function() {
 
         beforeEach(async function() {
-            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CDT token contract is deployed first
             contractInstance = await CerticolDAO.new(tokenInstance.address); // Deploy DAO contract
             await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
         });
 
         it('should own CerticolDAOToken', async function() {
-            expect(await tokenInstance.owner()).to.have.string(contractInstance.address); // Expected DAO to own the CTD contract
+            expect(await tokenInstance.owner()).to.have.string(contractInstance.address); // Expected DAO to own the CDT contract
         });
 
         it('should initialize token-related mappings', async function() {
@@ -50,10 +50,10 @@ contract('CerticolDAO', function(accounts) {
 
     describe('Basic Token Lock and Release Mechanics', function() {
 
-        const INITIAL_SUPPLY = new BN("10000000" + "0".repeat(18));
+        const INITIAL_SUPPLY = new BN("90000000" + "0".repeat(18));
 
         beforeEach(async function() {
-            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CDT token contract is deployed first
             contractInstance = await CerticolDAO.new(tokenInstance.address); // Deploy DAO contract
             await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
         });
@@ -62,8 +62,8 @@ contract('CerticolDAO', function(accounts) {
             await tokenInstance.transfer(contractInstance.address, 100, { from: accounts[0] }); // Transfer and lock 100 tokens to DAO from accounts[0]
             let event = await contractInstance.getPastEvents('TokensLocked', { filter: { tokenHolder: accounts[0] } }); // Since TokensLocked event is emitted in another contract, it is not included in the transaction log
             expectEvent.inLogs(event, 'TokensLocked', { tokenHolder: accounts[0], amount: new BN(100) }); // Expected TokensLocked event
-            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(100)); // Expected that DAO contract now owns 100 CTD
-            expect(await tokenInstance.balanceOf(accounts[0])).to.be.bignumber.equal(INITIAL_SUPPLY.sub(new BN(100))); // Expected that accounts[0] has 100 fewer CTD
+            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(100)); // Expected that DAO contract now owns 100 CDT
+            expect(await tokenInstance.balanceOf(accounts[0])).to.be.bignumber.equal(INITIAL_SUPPLY.sub(new BN(100))); // Expected that accounts[0] has 100 fewer CDT
             expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] now has 100 locked tokens
             expect(await contractInstance.getVotingRights(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] now has 100 voting rights
             expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] now has 100 PoSaT credits
@@ -72,19 +72,19 @@ contract('CerticolDAO', function(accounts) {
 
         it('should revert token deposit if deposit more than what they owned', async function() {
             await expectRevert(tokenInstance.transfer(contractInstance.address, 1, { from: accounts[1] }), 'SafeMath: subtraction overflow'); // Transfer and lock 1 tokens to DAO from accounts[1], who owns no token and therefore failed
-            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(0)); // Expected that DAO contract now owns 0 CTD
-            expect(await tokenInstance.balanceOf(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected that accounts[1] still has 0 CTD
+            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(0)); // Expected that DAO contract now owns 0 CDT
+            expect(await tokenInstance.balanceOf(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected that accounts[1] still has 0 CDT
             expect(await contractInstance.getTokensLocked(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected accounts[1] has 0 locked tokens
             expect(await contractInstance.getVotingRights(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected accounts[1] has 0 voting rights
             expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected accounts[1] has 0 PoSaT credits
             expect(await contractInstance.getLockedPoSaT(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected accounts[1] has no locked PoSaT credits
         });
 
-        it('should revert token deposit if it is not the designated CTD token', async function() {
-            let fakeTokenInstance = await CerticolDAOToken.new(accounts[1], { from: accounts[1] }); // Fake CTD token contract
-            await expectRevert(fakeTokenInstance.transfer(contractInstance.address, 100, { from: accounts[1] }), 'CDAO: we only accept CTD token');
-            // Transfer should failed since it is not the recognized CTD token
-            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(0)); // Expected that DAO contract owns 0 CTD
+        it('should revert token deposit if it is not the designated CDT token', async function() {
+            let fakeTokenInstance = await CerticolDAOToken.new(accounts[1], { from: accounts[1] }); // Fake CDT token contract
+            await expectRevert(fakeTokenInstance.transfer(contractInstance.address, 100, { from: accounts[1] }), 'CDAO: we only accept CDT token');
+            // Transfer should failed since it is not the recognized CDT token
+            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(0)); // Expected that DAO contract owns 0 CDT
             expect(await contractInstance.getTokensLocked(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected accounts[1] has 0 locked tokens
             expect(await contractInstance.getVotingRights(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected accounts[1] has 0 voting rights
             expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected accounts[1] has 0 PoSaT credits
@@ -95,8 +95,8 @@ contract('CerticolDAO', function(accounts) {
             await tokenInstance.transfer(contractInstance.address, 100, { from: accounts[0] }); // Transfer and lock 100 tokens to DAO from accounts[0]
             tx = await contractInstance.withdrawToken(50, { from: accounts[0] }); // Withdraw 50 locked tokens back
             expectEvent.inLogs(tx.logs, 'TokensUnlocked', { tokenHolder: accounts[0], amount: new BN(50) }); // Expected TokensUnlocked event
-            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(100).sub(new BN(50))); // Expected that DAO contract now owns 100 - 50 CTD
-            expect(await tokenInstance.balanceOf(accounts[0])).to.be.bignumber.equal(INITIAL_SUPPLY.sub(new BN(100)).add(new BN(50))); // Expected that accounts[0] has 50 more CTD
+            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(100).sub(new BN(50))); // Expected that DAO contract now owns 100 - 50 CDT
+            expect(await tokenInstance.balanceOf(accounts[0])).to.be.bignumber.equal(INITIAL_SUPPLY.sub(new BN(100)).add(new BN(50))); // Expected that accounts[0] has 50 more CDT
             expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(100).sub(new BN(50))); // Expected accounts[0] now has 100 - 50 locked tokens only
             expect(await contractInstance.getVotingRights(accounts[0])).to.be.bignumber.equal(new BN(100).sub(new BN(50))); // Expected accounts[0] now has 100 - 50 voting rights only
             expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(100).sub(new BN(50))); // Expected accounts[0] now has 100 - 50 PoSaT credits only
@@ -106,8 +106,8 @@ contract('CerticolDAO', function(accounts) {
         it('should not accept withdrawl of locked tokens if it exceeds the number of tokens they have locked', async function() {
             await tokenInstance.transfer(contractInstance.address, 100, { from: accounts[0] }); // Transfer and lock 100 tokens to DAO from accounts[0]
             await expectRevert(contractInstance.withdrawToken(101, { from: accounts[0] }), 'SafeMath: subtraction overflow'); // Withdraw 101 locked tokens back, which should fail
-            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(100)); // Expected that DAO contract still owns 100 CTD
-            expect(await tokenInstance.balanceOf(accounts[0])).to.be.bignumber.equal(INITIAL_SUPPLY.sub(new BN(100))); // Expected that accounts[0] still has 100 fewer CTD
+            expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(100)); // Expected that DAO contract still owns 100 CDT
+            expect(await tokenInstance.balanceOf(accounts[0])).to.be.bignumber.equal(INITIAL_SUPPLY.sub(new BN(100))); // Expected that accounts[0] still has 100 fewer CDT
             expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] still has 100 locked tokens
             expect(await contractInstance.getVotingRights(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] still has 100 voting rights
             expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] still has 100 PoSaT credits
@@ -120,7 +120,7 @@ contract('CerticolDAO', function(accounts) {
 
         // Deploy the contract before each test
         beforeEach(async function() {
-            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CDT token contract is deployed first
             contractInstance = await CerticolDAO.new(tokenInstance.address); // Deploy DAO contract
             await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
             await tokenInstance.transfer(contractInstance.address, 100, { from: accounts[0] }); // 100 tokens is locked from accounts[0] into the contract
@@ -171,7 +171,7 @@ contract('CerticolDAO', function(accounts) {
 
         it('should accept the withdrawl of locked tokens if msg.sender still have sufficient voting rights', async function() {
             await contractInstance.delegateVotingRights(accounts[1], 50, { from: accounts[0] }); // Delegate 50 voting rights to accounts[1]
-            await contractInstance.withdrawToken(50, { from: accounts[0] }); // Since accounts[0] only had 50 voting rights, it can withdraw up to 50 CTD, so this should work
+            await contractInstance.withdrawToken(50, { from: accounts[0] }); // Since accounts[0] only had 50 voting rights, it can withdraw up to 50 CDT, so this should work
             expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected accounts[0] has 100 - 50 locked tokens only
             expect(await contractInstance.getVotingRights(accounts[0])).to.be.bignumber.equal(new BN(0)); // Expected 100 - 50 - 50 voting rights left in accounts[0]
             expect(await contractInstance.getVotingRights(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 voting rights (delegated from accounts[0]) in accounts[1]
@@ -182,7 +182,7 @@ contract('CerticolDAO', function(accounts) {
         it('should not accept the withdrawl of locked tokens if msg.sender does not have sufficient voting rights', async function() {
             await contractInstance.delegateVotingRights(accounts[1], 50, { from: accounts[0] }); // Delegate 50 voting rights to accounts[1]
             await expectRevert(contractInstance.withdrawToken(51, { from: accounts[0] }), 'SafeMath: subtraction overflow');
-            // Since accounts[0] only had 50 voting rights, it can only withdraw up to 50 CTD, so this should fail
+            // Since accounts[0] only had 50 voting rights, it can only withdraw up to 50 CDT, so this should fail
             expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] still has 100 locked tokens
             expect(await contractInstance.getVotingRights(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 voting rights left in accounts[0]
             expect(await contractInstance.getVotingRights(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 voting rights (delegated from accounts[0]) in accounts[1]
@@ -237,7 +237,7 @@ contract('CerticolDAO', function(accounts) {
 
         // Deploy the contract before each test
         beforeEach(async function() {
-            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CTD token contract is deployed first
+            tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CDT token contract is deployed first
             contractInstance = await CerticolDAO.new(tokenInstance.address); // Deploy DAO contract
             await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
             await tokenInstance.transfer(contractInstance.address, 100, { from: accounts[0] }); // 100 tokens is locked from accounts[0] into the contract
@@ -288,7 +288,7 @@ contract('CerticolDAO', function(accounts) {
 
         it('should accept the withdrawl of locked tokens if msg.sender still have sufficient PoSaT credits', async function() {
             await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
-            await contractInstance.withdrawToken(50, { from: accounts[0] }); // Since accounts[0] only had 50 PoSaT credits, it can withdraw up to 50 CTD, so this should work
+            await contractInstance.withdrawToken(50, { from: accounts[0] }); // Since accounts[0] only had 50 PoSaT credits, it can withdraw up to 50 CDT, so this should work
             expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected accounts[0] has 100 - 50 locked tokens only
             expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(0)); // Expected 100 - 50 - 50 PoSaT credits left in accounts[0]
             expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits (delegated from accounts[0]) in accounts[1]
@@ -299,7 +299,7 @@ contract('CerticolDAO', function(accounts) {
         it('should not accept the withdrawl of locked tokens if msg.sender does not have sufficient PoSaT credits', async function() {
             await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
             await expectRevert(contractInstance.withdrawToken(51, { from: accounts[0] }), 'SafeMath: subtraction overflow');
-            // Since accounts[0] only had 50 PoSaT credits, it can only withdraw up to 50 CTD, so this should fail
+            // Since accounts[0] only had 50 PoSaT credits, it can only withdraw up to 50 CDT, so this should fail
             expect(await contractInstance.getTokensLocked(accounts[0])).to.be.bignumber.equal(new BN(100)); // Expected accounts[0] still has 100 locked tokens
             expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 PoSaT credits left in accounts[0]
             expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits (delegated from accounts[0]) in accounts[1]

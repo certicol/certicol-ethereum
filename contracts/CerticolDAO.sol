@@ -1,10 +1,12 @@
 pragma solidity 0.5.3;
 
+import './ICerticolCA.sol';
+import './ICerticolDAOToken.sol';
+
 import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
 import 'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
 import 'openzeppelin-solidity/contracts/token/ERC777/IERC777Recipient.sol';
 import 'openzeppelin-solidity/contracts/introspection/IERC1820Registry.sol';
-import './ICerticolDAOToken.sol';
 
 /**
  * @title Certicol DAO Contract
@@ -27,10 +29,10 @@ contract CerticolDAO is IERC777Recipient {
     bytes32 constant private TOKENS_RECIPIENT_INTERFACE_HASH =
         0xb281fc8c12954d22544db45de3159a39272895b169a852b314f9cc762e44c53b; // keccak256("ERC777TokensRecipient")
 
-    /// CTD token interface that includes the mintInterest function
-    ICerticolDAOToken private _CTD;
-    /// ERC-20 interface of the CTD token
-    IERC20 private _CTD_ERC20;
+    /// CDT token interface that includes the mintInterest function
+    ICerticolDAOToken private _CDT;
+    /// ERC-20 interface of the CDT token
+    IERC20 private _CDT_ERC20;
 
     /// Mapping from address to tokens locked
     mapping(address => uint256) private _tokensLocked;
@@ -76,9 +78,9 @@ contract CerticolDAO is IERC777Recipient {
     constructor(address tokenAddress) public {
         // Register ERC-777 RECIPIENT_INTERFACE at ERC-1820 registry
         _erc1820.setInterfaceImplementer(address(this), TOKENS_RECIPIENT_INTERFACE_HASH, address(this));
-        // Initialize CTD token interface
-        _CTD = ICerticolDAOToken(tokenAddress);
-        _CTD_ERC20 = IERC20(tokenAddress);
+        // Initialize CDT token interface
+        _CDT = ICerticolDAOToken(tokenAddress);
+        _CDT_ERC20 = IERC20(tokenAddress);
     }
 
     /**
@@ -156,14 +158,14 @@ contract CerticolDAO is IERC777Recipient {
     }
 
     /**
-     * @notice Implements the IERC777Recipient interface to allow this contract to receive CTD token
-     * @dev Any inward transaction of ERC-777 other than CTD token would be reverted
+     * @notice Implements the IERC777Recipient interface to allow this contract to receive CDT token
+     * @dev Any inward transaction of ERC-777 other than CDT token would be reverted
      * @param from address token holder address
      * @param amount uint256 amount of tokens to transfer
      */
     function tokensReceived(address, address from, address, uint256 amount, bytes calldata, bytes calldata) external {
-        // Only accept inward ERC-777 transaction if it is the CTD token
-        require(msg.sender == address(_CTD), "CDAO: we only accept CTD token");
+        // Only accept inward ERC-777 transaction if it is the CDT token
+        require(msg.sender == address(_CDT), "CDAO: we only accept CDT token");
         // Modify the internal state upon receiving the tokens
         _tokensLocked[from] = _tokensLocked[from].add(amount);
         _votingRights[from] = _votingRights[from].add(amount);
@@ -188,7 +190,7 @@ contract CerticolDAO is IERC777Recipient {
         // Emit TokensUnlocked event
         emit TokensUnlocked(msg.sender, amount);
         // Transfer token to msg.sender
-        _CTD_ERC20.transfer(msg.sender, amount);
+        _CDT_ERC20.transfer(msg.sender, amount);
     }
 
     /**

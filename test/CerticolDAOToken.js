@@ -26,8 +26,8 @@ contract('CerticolDAOToken', function(accounts) {
         await expectRevert(CerticolDAOToken.new(constants.ZERO_ADDRESS, { from: accounts[1] }), "CDT: initial token send to the zero address");
     });
 
-    it('should create and grant 10,000,000 CDT tokens upon creation', async function() {
-        let initialBalance = new BN("10000000" + "0".repeat(18));
+    it('should create and grant 90,000,000 CDT tokens upon creation', async function() {
+        let initialBalance = new BN("90000000" + "0".repeat(18));
         let balance = await contractInstance.balanceOf(accounts[0]);
         expect(balance).to.be.bignumber.equal(initialBalance);
         let totalSupply = await contractInstance.totalSupply();

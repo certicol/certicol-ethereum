@@ -25,8 +25,8 @@ contract CerticolDAOToken is ERC777, Ownable, ICerticolDAOToken {
     string constant SYMBOL = "CDT";
     address[] private DEFAULT_OPERATORS = new address[](0);
 
-    /// Define initial supply as 10,000,000 CDT
-    uint256 constant INITIAL_SUPPLY = uint256(10000000);
+    /// Define initial supply as 90,000,000 CDT
+    uint256 constant INITIAL_SUPPLY = uint256(90000000);
 
     /**
      * @notice Initialize the CerticolDAOToken contract
