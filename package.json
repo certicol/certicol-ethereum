@@ -14,7 +14,7 @@
 		"test-truffle:core": "truffle test --network develop",
 		"posttest": "rm allFiredEvents bridge.log",
 		"coverage": "run-p coverage:** --race --silent --aggregate-output",
-		"coverage:testrpc": "testrpc-sc --port 8555 --gasLimit 0xfffffffffff --gasPrice 0x01 --defaultBalanceEther 1000000 --unlock 0x7A490a716f9033E3B3b51aBEAf579B54ecBffd23 0xe3A6F7295890382b2215A81Da25A1a30F99E391d",
+		"coverage:testrpc": "testrpc-sc --port 8555 --gasLimit 0xfffffffffff --gasPrice 0x01 --defaultBalanceEther 1000000 --unlock 0x7A490a716f9033E3B3b51aBEAf579B54ecBffd23 0xe3A6F7295890382b2215A81Da25A1a30F99E391d --allowUnlimitedContractSize",
 		"coverage:provable-bridge": "run-s coverage-provable-bridge:delay coverage-provable-bridge:core --silent",
 		"coverage-provable-bridge:delay": "sleep 10",
 		"coverage-provable-bridge:core": "ethereum-bridge -H localhost:8555 -a 9 --dev --loglevel error",
