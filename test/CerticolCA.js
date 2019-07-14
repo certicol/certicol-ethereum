@@ -3,7 +3,9 @@ const { BN, time, expectEvent, expectRevert } = require('openzeppelin-test-helpe
 const { expect } = require('chai');
 
 // Obtain contract abstractions
-const CerticolCA = artifacts.require('CerticolCATest');
+var CerticolCA;
+const CerticolCATestStandard = artifacts.require('CerticolCATestStandard');
+const CerticolCATestCoverage = artifacts.require('CerticolCATestCoverage');
 
 // Test for CerticolDAOToken.sol
 contract('CerticolCA', function(accounts) {
@@ -25,13 +27,23 @@ contract('CerticolCA', function(accounts) {
         web3.eth.sendTransaction({
             from: accounts[8],
             to: addressValid,
-            value: web3.utils.toWei('45000', 'ether')
+            value: web3.utils.toWei('450000', 'ether')
         });
         web3.eth.sendTransaction({
             from: accounts[8],
             to: addressInvalid,
-            value: web3.utils.toWei('45000', 'ether')
+            value: web3.utils.toWei('450000', 'ether')
         });
+        // Select CerticolCA contract abstraction to use
+        let lastBlock = await web3.eth.getBlock("latest");
+        if (await lastBlock.gasLimit == 17592186044415) {
+            // Swap to coverage-only CerticolCA if on coverage network
+            CerticolCA = CerticolCATestCoverage;
+        }
+        else {
+            // Use normal CerticolCATest
+            CerticolCA = CerticolCATestStandard;
+        }
     });
 
     describe('Initialization of Contract', function() {

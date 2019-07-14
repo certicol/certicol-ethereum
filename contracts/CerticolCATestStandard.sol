@@ -3,13 +3,13 @@ pragma solidity 0.5.3;
 import './CerticolCA.sol';
 
 /**
- * @title Testing erticol Certification Authority (CA) Contract
+ * @title Testing Certicol Certification Authority (CA) Contract
  *
  * @author Ken Sze <acken2@outlook.com>
  *
  * @notice This contracts redefines getRingTwoValidityPeriod() to 100 for easier testing. Do NOT use in production environment.
  */
-contract CerticolCATest is CerticolCA {
+contract CerticolCATestStandard is CerticolCA {
 
     /**
      * @notice Get the number of block time granted per successful ring 2 validation

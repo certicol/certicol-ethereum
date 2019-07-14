@@ -4,7 +4,9 @@ const { expect } = require('chai');
 
 // Obtain contract abstractions
 const CerticolCA = artifacts.require('CerticolCA');
-const CerticolCATest = artifacts.require('CerticolCATest');
+var CerticolCATest;
+const CerticolCATestStandard = artifacts.require('CerticolCATestStandard');
+const CerticolCATestCoverage = artifacts.require('CerticolCATestCoverage');
 const CerticolDAO = artifacts.require('CerticolDAO');
 const CerticolDAOToken = artifacts.require('CerticolDAOToken');
 
@@ -22,6 +24,16 @@ contract('CerticolDAO', function(accounts) {
     before(async function() {
         // Source: https://github.com/OpenZeppelin/openzeppelin-solidity/issues/1743#issuecomment-491472245
         await singletons.ERC1820Registry(accounts[0]);
+        // Select CerticolCA contract abstraction to use
+        let lastBlock = await web3.eth.getBlock("latest");
+        if (await lastBlock.gasLimit == 17592186044415) {
+            // Swap to coverage-only CerticolCA if on coverage network
+            CerticolCATest = CerticolCATestCoverage;
+        }
+        else {
+            // Use normal CerticolCATest
+            CerticolCATest = CerticolCATestStandard;
+        }
     });
 
     describe('Initialization and Deployment', function() {
