@@ -22,6 +22,12 @@ contract CerticolDAO is IERC777Recipient {
     /// Use safe math
     using SafeMath for uint256;
 
+    /// Struct definition
+    struct CerticolDAOVoC {
+        uint256 blockIssue;
+        uint256 tokenStaked;
+    }
+
     /// ERC-1820 registry
     IERC1820Registry private _erc1820 =
         IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
@@ -33,6 +39,8 @@ contract CerticolDAO is IERC777Recipient {
     ICerticolDAOToken private _CDT;
     /// ERC-20 interface of the CDT token
     IERC20 private _CDT_ERC20;
+    /// CerticolCA interface
+    ICerticolCA private _CA;
 
     /// Mapping from address to tokens locked
     mapping(address => uint256) private _tokensLocked;
@@ -47,7 +55,12 @@ contract CerticolDAO is IERC777Recipient {
     mapping(address => uint256) private _availablePoSaT;
     /// Mapping from address to their locked PoSaT credit, due to participation
     /// in the PoSaT mechanism
+    /// It should be noted that delegation would NOT increase _lockedPoSaT, and
+    /// the query on the net PoSaT credits an address have (available + delegated)
+    /// should be done by getAvailablePoSaT() + getNetDelegatedPoSaT()
     mapping(address => uint256) private _lockedPoSaT;
+    /// Cumulative tokens locked
+    uint256 private _cumulativeTokenLocked = 0;
 
     /// Mapping from address to each delegated address and the amount of voting rights delegated
     mapping(address => mapping(address => uint256)) private _delegatedVotingRights;
@@ -57,6 +70,26 @@ contract CerticolDAO is IERC777Recipient {
     mapping(address => mapping(address => uint256)) private _delegatedPoSaT;
     /// Mapping from address to the NET delegated PoSaT credits to avoid secondary delegation
     mapping(address => uint256) private _delegatedNetPoSaT;
+
+    /// CDT token requirement for granting O10 authorization, designated to be 10% of initial token supply
+    uint256 private _O10Requirement;
+    /// Mapping from address to their O10 authorization status and the amount of tokens locked
+    mapping(address => uint256) private _O10Authorization;
+    /// CDT token requirement for O10 vote of confidence (10,000 CDT)
+    uint256 private _vocRequirement = uint256(10000).mul(uint256(10**18));
+    /// Mapping from O10 authorized address to total number of active PoSaT VoC records they have given out
+    mapping(address => uint256) private _vocCount;
+    /// Mapping from O10 authorized address to adress that they have voted confidence
+    mapping(address => mapping(address => CerticolDAOVoC)) private _vocRecords;
+    /// Reverse mappng from address being voted to an array of O10 authorized address that has voted confidence toward it
+    mapping(address => address[]) private _vocReverseRecords;
+
+    /// Proof-of-Stake-as-Trust reward ratio (5% p.a. as default)
+    uint256 private _posatRewardRatio = 5;
+    /// Proof-of-Stake-as-Trust reward block requirement (roughly 1 year as default)
+    uint256 internal _posatRewardRequirement = 2102400;
+    /// Cumulative PoSaT credits ratio required in O10 who have voted confidence to grant ring 1 status
+    uint256 private _ringOneRequirement = 25;
 
     /// Event that will be emitted when tokens are received and locked within this contract
     event TokensLocked(address indexed tokenHolder, uint256 amount);
@@ -72,15 +105,32 @@ contract CerticolDAO is IERC777Recipient {
     /// Event that will be emitted upon the withdrawl of delegated PoSaT credits
     event PoSaTDelegationWithdrawl(address indexed tokenHolder, address indexed delegate, uint256 amount);
 
+    /// Event emitted when O10 authorization is given out
+    event O10Authorized(address indexed O10, uint256 PoSaTLocked);
+    /// Event emitted when O10 authotization is revoked
+    event O10Deauthorized(address indexed O10, uint256 PoSaTUnlocked);
+    /// Event emitted when O10 voted confidence
+    event O10VotedConfidence(address indexed O10, address indexed target, uint256 PoSaTLocked);
+    /// Event emitted when O10 was granted reward for PoSaT
+    event O10RewardGranted(address indexed O10, uint256 reward);
+    /// Event emitted when O10 revoke the vote of confidence
+    event O10RevokeVoteConfidence(address indexed O10, address indexed target, uint256 PoSaTUnlocked);
+
     /**
      * @notice Initialize the CerticolDAO contract
+     * @param tokenAddress address the address of the deployed CerticolDAOToken contract
+     * @param caAddress address the address of the deployed CerticolCA contract
      */
-    constructor(address tokenAddress) public {
+    constructor(address tokenAddress, address caAddress) public {
         // Register ERC-777 RECIPIENT_INTERFACE at ERC-1820 registry
         _erc1820.setInterfaceImplementer(address(this), TOKENS_RECIPIENT_INTERFACE_HASH, address(this));
         // Initialize CDT token interface
         _CDT = ICerticolDAOToken(tokenAddress);
         _CDT_ERC20 = IERC20(tokenAddress);
+        // Initialize O10 requirements
+        _O10Requirement = _CDT_ERC20.totalSupply().div(10);
+        // Initialize CerticolCA interface
+        _CA = ICerticolCA(caAddress);
     }
 
     /**
@@ -117,6 +167,14 @@ contract CerticolDAO is IERC777Recipient {
      */
     function getLockedPoSaT(address holder) public view returns (uint256) {
         return _lockedPoSaT[holder];
+    }
+
+    /**
+     * @notice Get the net amount of token locked in this contract
+     * @return the net amount of token locked in this contract
+     */
+    function getCumulativeTokenLocked() public view returns (uint256) {
+        return _cumulativeTokenLocked;
     }
 
     /**
@@ -158,6 +216,117 @@ contract CerticolDAO is IERC777Recipient {
     }
 
     /**
+     * @notice Get the amount of available PoSaT credits required for O10 authorization
+     * @return uint256 the amount of available PoSaT credits required for O10 authorization
+     */
+    function getO10Requirements() public view returns (uint256) {
+        return _O10Requirement;
+    }
+
+    /**
+     * @notice Get the O10 authorization status of an address
+     * @param query address the address to be queried
+     * @return bool true if query owns O10 authorization status and false if doesn't
+     */
+    function getO10Status(address query) public view returns (bool) {
+        return _O10Authorization[query] != 0;
+    }
+
+    /**
+     * @notice Get the available PoSaT credits requirement for voting confidence
+     * @return bool the available PoSaT credits requirement for voting confidence
+     */
+    function getVOCRequirement() public view returns (uint256) {
+        return _vocRequirement;
+    }
+
+    /**
+     * @notice Get the total number of active PoSaT vote of confidence issued by the O10 member
+     * @param O10 address the address of the O10 to be queried
+     * @return uint256 the total number of active PoSaT vote of confidence issued by the O10 member
+     */
+    function getActiveVoCIssued(address O10) public view returns (uint256) {
+        return _vocCount[O10];
+    }
+
+    /**
+     * @notice Get a list of O10 that has voted confidence toward target
+     * @param target address the address to be queried on what O10 has voted confidence on it
+     * @return address[] list of O10 that has voted confidence toward target
+     * @dev address(0) could be returned in the array, which is an leftover from a revoke of vote of confidence
+     */
+    function getVoC(address target) public view returns (address[] memory) {
+        return _vocReverseRecords[target];
+    }
+
+    /**
+     * @notice Get whether a O10 has voted confidence toward target
+     * @param target address the address to be queried on whether O10 has voted confidence on it
+     * @param O10 address the address of the O10 to be queried
+     * @return bool true if O10 has voted confidence, and false if otherwise
+     */
+    function getVoCFrom(address target, address O10) public view returns (bool) {
+        return _vocRecords[O10][target].blockIssue != 0;
+    }
+
+    /**
+     * @notice Get the current Proof-of-Stake-as-Trust reward ratio
+     * @return uint256 the current Proof-of-Stake-as-Trust reward ratio
+     */
+    function getCurrentPoSaTReward() public view returns (uint256) {
+        return _posatRewardRatio;
+    }
+
+    /**
+     * @notice Get the current Proof-of-Stake-as-Trust reward block requirement
+     * @return uint256 the current Proof-of-Stake-as-Trust reward block requirement
+     */
+    function getCurrentPoSaTRequirement() public view returns (uint256) {
+        return _posatRewardRequirement;
+    }
+
+    /**
+     * @notice Get the current cumulative PoSaT credits ratio required in O10 who have voted confidence to grant ring 1 status
+     * @return uint256 the current cumulative PoSaT credits ratio required in O10 who have voted confidence to grant ring 1 status
+     */
+    function getCurrentRingOneRequirement() public view returns (uint256) {
+        return _ringOneRequirement;
+    }
+
+    /**
+     * @notice Get the current ring of validation for target
+     * @param target address the address to be queried
+     * @return uint256 either 1, 2, 3 or 4 which corresponds to the ring of validation
+     * @dev Ring one validation is granted if target owns a valid ring 2 status
+     * @dev And, in addition, cumulative PoSaT credits owned by O10 who have voted confidence > _ringOneRequirement of total supply
+     */
+    function getCurrentRing(address target) external view returns (uint256) {
+        // Get ring 2 - 4 validation status from CerticolCA
+        (uint256 ring,,) = _CA.getStatus(target);
+        // Return ring 3 - 4 validation status since no further computation is required
+        if (ring > 2) {
+            return ring;
+        }
+        // Compute if target qualifies for ring 1 validation
+        // Calculate the total PoSaT credits held by O10 who have voted confidence (inc. available and locked credits)
+        uint256 totalTokenHeld = 0;
+        for (uint256 i = 0; i<_vocReverseRecords[target].length; i++) {
+            address currentO10 = _vocReverseRecords[target][i];
+            // Skip if current address is address(0) - leftover from revoking vote of confidence
+            if (currentO10 != address(0)) {
+                totalTokenHeld = totalTokenHeld.add(_availablePoSaT[currentO10]).add(_lockedPoSaT[currentO10]);
+            }
+        }
+        // Validate if all O10 that has voted confidence toward target have a summation of 25% tokens locked
+        if (totalTokenHeld.mul(100).div(_ringOneRequirement) >= _cumulativeTokenLocked) {
+            return 1; // Ring 1 status
+        }
+        else {
+            return 2; // Ring 2 status
+        }
+    }
+
+    /**
      * @notice Implements the IERC777Recipient interface to allow this contract to receive CDT token
      * @dev Any inward transaction of ERC-777 other than CDT token would be reverted
      * @param from address token holder address
@@ -170,6 +339,7 @@ contract CerticolDAO is IERC777Recipient {
         _tokensLocked[from] = _tokensLocked[from].add(amount);
         _votingRights[from] = _votingRights[from].add(amount);
         _availablePoSaT[from] = _availablePoSaT[from].add(amount);
+        _cumulativeTokenLocked = _cumulativeTokenLocked.add(amount);
         // Emit TokensLocked event
         emit TokensLocked(from, amount);
     }
@@ -187,6 +357,7 @@ contract CerticolDAO is IERC777Recipient {
         // Successfully subtracted their voting rights and PoSaT credit
         // Proceed with the withdrawl
         _tokensLocked[msg.sender] = _tokensLocked[msg.sender].sub(amount);
+        _cumulativeTokenLocked = _cumulativeTokenLocked.sub(amount);
         // Emit TokensUnlocked event
         emit TokensUnlocked(msg.sender, amount);
         // Transfer token to msg.sender
@@ -278,6 +449,141 @@ contract CerticolDAO is IERC777Recipient {
         _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].add(amount);
         // Emit PoSaTDelegationWithdrawl
         emit PoSaTDelegationWithdrawl(msg.sender, delegate, amount);
+    }
+
+    /**
+     * @notice Throws if msg.sender do not have O10 authorization
+     */
+    modifier O10Only() {
+        require(getO10Status(msg.sender), "CerticolDAO: msg.sender did not owned a valid O10 authorization");
+        _;
+    }
+
+    /**
+     * @notice Lock _O10Requirement PoSaT credits and grants msg.sender O10 authorization
+     * @dev Reverts if msg.sender does not have sufficient available PoSaT credits
+     * @dev Reverts if msg.sender have O10 authorization already
+     */
+    function O10Authorization() external {
+        // Check if msg.sender already have O10 authorization
+        require(!getO10Status(msg.sender), "CerticolDAO: msg.sender already owned a valid O10 authorization");
+        // Lock _O10Requirement PoSaT credits
+        _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].sub(_O10Requirement);
+        _lockedPoSaT[msg.sender] = _lockedPoSaT[msg.sender].add(_O10Requirement);
+        // Grant O10 authorization
+        _O10Authorization[msg.sender] = _O10Requirement;
+        // Emit O10Authorized
+        emit O10Authorized(msg.sender, _O10Requirement);
+    }
+
+    /**
+     * @notice Revoke msg.sender O10 authorization and unlock locked PoSaT credits
+     * @dev Reverts if msg.sender do not have O10 authorization already
+     * @dev Reverts if msg.sender still have active PoSaT VoC issued currently
+     * @dev O10 can ONLY be deauthorized after all PoSaT VoC issued by msg.sender has been revoked
+     */
+    function O10Deauthorization() external O10Only {
+        // Check if msg.sender still has any active PoSaT VoC
+        require(getActiveVoCIssued(msg.sender) == 0, "CerticolDAO: msg.sender still has active PoSaT VoC");
+        // Unlock _O10Requirement PoSaT credits
+        uint256 lockedCredit = _O10Authorization[msg.sender];
+        _lockedPoSaT[msg.sender] = _lockedPoSaT[msg.sender].sub(lockedCredit);
+        _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].add(lockedCredit);
+        // Revoke O10 authorization
+        _O10Authorization[msg.sender] = 0;
+        // Emit O10Deauthorized
+        emit O10Deauthorized(msg.sender, lockedCredit);
+    }
+
+    /**
+     * @notice Lock required amounts of PoSaT credits and vote confidence toward target
+     * @param target address the address to be voted confidence on
+     * @dev Reverts if msg.sender do not have O10 authorization already
+     * @dev Reverts if msg.sender have already voted confidence toward target
+     * @dev Reverts if msg.sender do not have sufficient available PoSaT credits
+     */
+    function O10VoteConfidence(address target) external O10Only {
+        // Check if msg.sender has already voted confidence toward target
+        require(!getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has already voted confidence toward target");
+        // Subtract required PoSaT credits from msg.sender
+        _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].sub(_vocRequirement);
+        _lockedPoSaT[msg.sender] = _lockedPoSaT[msg.sender].add(_vocRequirement);
+        // Adds to active PoSaT VoC
+        _vocCount[msg.sender] = _vocCount[msg.sender].add(1);
+        // Appends the record to VoC records
+        _vocRecords[msg.sender][target] = CerticolDAOVoC(block.number, _vocRequirement);
+        // Appends to reverse records as well
+        _vocReverseRecords[target].push(msg.sender);
+        // Emit O10VotedConfidence
+        emit O10VotedConfidence(msg.sender, target, _vocRequirement);
+    }
+
+    /**
+     * @notice Get PoSaT reward from a vote of confidence issued to target
+     * @param target address the address that msg.sender have voted confidence on, and would like to get the PoSaT reward from the vote
+     * @dev Reverts if msg.sender do not have O10 authorization already
+     * @dev Reverts if msg.sender have not voted confidence toward target
+     * @dev Reverts if the vote has not been sustained for a minimum of _posatRewardRequirement blocks
+     * @dev Reverts if the target has not sustained ring 2 status from CerticolCA for a minimum of _posatRewardRequirement blocks
+     */
+    function O10GetReward(address target) external O10Only {
+        // Check if msg.sender has actually voted confidence toward target
+        require(getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has not voted confidence toward target");
+        // Check if the vote has sustained for _posatRewardRequirement blocks
+        require(
+            block.number.sub(_vocRecords[msg.sender][target].blockIssue) >= _posatRewardRequirement,
+            "CerticolDAO: vote of confidence has not sustained long enough for reward"
+        );
+        // Check if the Ring 2 validation has sustained throughout this period
+        (,uint256 ring2IssueBlock,) = _CA.getStatus(target);
+        require(ring2IssueBlock != 0, "CerticolDAO: target has no ring 2 status");
+        require(
+            block.number.sub(ring2IssueBlock) >= _posatRewardRequirement,
+            "CerticolDAO: ring 2 status has not sustained long enough for reward"
+        );
+        // Calculate the reward to be minted (tokenStaked * _posatRewardRatio / 100)
+        uint256 reward = _vocRecords[msg.sender][target].tokenStaked.mul(_posatRewardRatio).div(100);
+        // Before reward is minted, increment blockIssue in CerticolDAOVoC record
+        _vocRecords[msg.sender][target].blockIssue = _vocRecords[msg.sender][target].blockIssue.add(_posatRewardRequirement);
+        // Emit O10RewardGranted
+        emit O10RewardGranted(msg.sender, reward);
+        // Mint the reward
+        _CDT.mintInterest(msg.sender, reward);
+    }
+
+    /**
+     * @notice Revoke vote of confidence and unlock the locked PoSaT credits
+     * @param target address the address that msg.sender have voted confidence on, and would like to revoke the vote
+     * @dev Reverts if msg.sender do not have O10 authorization already
+     * @dev Reverts if msg.sender have not voted confidence toward target
+     */
+    function O10RevokeVote(address target) external O10Only {
+        // Check if msg.sender has actually voted confidence toward target
+        require(getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has not voted confidence toward target");
+        // Delete reverse vote entry in _vocReverseRecords
+        for (uint256 i = 0; i<_vocReverseRecords[target].length; i++) {
+            if (_vocReverseRecords[target][i] == msg.sender) {
+                delete _vocReverseRecords[target][i];
+                break;
+            }
+        }
+        // Delete vote entry in _vocRecords
+        uint256 tokenLocked = _vocRecords[msg.sender][target].tokenStaked;
+        delete _vocRecords[msg.sender][target];
+        // Subtract 1 from active PoSaT VoC
+        _vocCount[msg.sender] = _vocCount[msg.sender].sub(1);
+        // Unlock the locked PoSaT credits
+        _lockedPoSaT[msg.sender] = _lockedPoSaT[msg.sender].sub(tokenLocked);
+        _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].add(tokenLocked);
+        // Emit O10RevokeVoteConfidence
+        emit O10RevokeVoteConfidence(msg.sender, target, tokenLocked);
+    }
+
+    /**
+     * @notice Temporary backdoor used for testing
+     */
+    function tempBackdoor() external {
+        _posatRewardRequirement = 10;
     }
 
 }
