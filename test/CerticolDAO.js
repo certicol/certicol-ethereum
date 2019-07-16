@@ -120,7 +120,7 @@ contract('CerticolDAO', function(accounts) {
 
         it('should revert token deposit if it is not the designated CDT token', async function() {
             let fakeTokenInstance = await CerticolDAOToken.new(accounts[1], { from: accounts[1] }); // Fake CDT token contract
-            await expectRevert(fakeTokenInstance.transfer(contractInstance.address, 100, { from: accounts[1] }), 'CDAO: we only accept CDT token');
+            await expectRevert(fakeTokenInstance.transfer(contractInstance.address, 100, { from: accounts[1] }), 'CerticolDAO: we only accept CDT token');
             // Transfer should failed since it is not the recognized CDT token
             expect(await tokenInstance.balanceOf(contractInstance.address)).to.be.bignumber.equal(new BN(0)); // Expected that DAO contract owns 0 CDT
             expect(await contractInstance.getTokensLocked(accounts[1])).to.be.bignumber.equal(new BN(0)); // Expected accounts[1] has 0 locked tokens
@@ -190,7 +190,7 @@ contract('CerticolDAO', function(accounts) {
     
             it('should not accept delegation if it exceeds the amount of voting rights msg.sender owns', async function() {
                 await contractInstance.delegateVotingRights(constants.ZERO_ADDRESS, 50, { from: accounts[0] }); // Delegate 50 voting rights to 0x0
-                await expectRevert(contractInstance.delegateVotingRights(accounts[1], 51, { from: accounts[0] }), 'CDAO: insufficient voting rights or secondary delegation is not permitted');
+                await expectRevert(contractInstance.delegateVotingRights(accounts[1], 51, { from: accounts[0] }), 'CerticolDAO: insufficient voting rights or secondary delegation is not permitted');
                 // Reject since msg.sender only have 100 - 50 voting rights left (51 required)
                 expect(await contractInstance.getVotingRights(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 voting rights left in accounts[0]
                 expect(await contractInstance.getVotingRights(constants.ZERO_ADDRESS)).to.be.bignumber.equal(new BN(50)); // Expected 50 voting rights (delegated from accounts[0]) in 0x0
@@ -202,7 +202,7 @@ contract('CerticolDAO', function(accounts) {
     
             it('should not accept secondary delegation', async function() {
                 await contractInstance.delegateVotingRights(accounts[1], 50, { from: accounts[0] }); // Delegate 50 voting rights to accounts[1]
-                await expectRevert(contractInstance.delegateVotingRights(accounts[2], 25, { from: accounts[1] }), 'CDAO: insufficient voting rights or secondary delegation is not permitted');
+                await expectRevert(contractInstance.delegateVotingRights(accounts[2], 25, { from: accounts[1] }), 'CerticolDAO: insufficient voting rights or secondary delegation is not permitted');
                 // Although accounts[1] has 50 voting rights, but since secondary delegation is banner, accounts[1] cannot further delegate 20 voting rights to accounts[2]
                 expect(await contractInstance.getVotingRights(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 voting rights left in accounts[0]
                 expect(await contractInstance.getVotingRights(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 voting rights (delegated from accounts[0]) in accounts[1]
@@ -308,7 +308,7 @@ contract('CerticolDAO', function(accounts) {
     
             it('should not accept delegation if it exceeds the amount of PoSaT credits msg.sender owns', async function() {
                 await contractInstance.delegatePoSaT(constants.ZERO_ADDRESS, 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to 0x0
-                await expectRevert(contractInstance.delegatePoSaT(accounts[1], 51, { from: accounts[0] }), 'CDAO: insufficient PoSaT credits or secondary delegation is not permitted');
+                await expectRevert(contractInstance.delegatePoSaT(accounts[1], 51, { from: accounts[0] }), 'CerticolDAO: insufficient PoSaT credits or secondary delegation is not permitted');
                 // Reject since msg.sender only have 100 - 50 PoSaT credits left (51 required)
                 expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 PoSaT credits left in accounts[0]
                 expect(await contractInstance.getAvailablePoSaT(constants.ZERO_ADDRESS)).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits (delegated from accounts[0]) in 0x0
@@ -320,7 +320,7 @@ contract('CerticolDAO', function(accounts) {
     
             it('should not accept secondary delegation', async function() {
                 await contractInstance.delegatePoSaT(accounts[1], 50, { from: accounts[0] }); // Delegate 50 PoSaT credits to accounts[1]
-                await expectRevert(contractInstance.delegatePoSaT(accounts[2], 25, { from: accounts[1] }), 'CDAO: insufficient PoSaT credits or secondary delegation is not permitted');
+                await expectRevert(contractInstance.delegatePoSaT(accounts[2], 25, { from: accounts[1] }), 'CerticolDAO: insufficient PoSaT credits or secondary delegation is not permitted');
                 // Although accounts[1] has 50 PoSaT credits, but since secondary delegation is banned, accounts[1] cannot further delegate 20 PoSaT credits to accounts[2]
                 expect(await contractInstance.getAvailablePoSaT(accounts[0])).to.be.bignumber.equal(new BN(50)); // Expected 100 - 50 PoSaT credits left in accounts[0]
                 expect(await contractInstance.getAvailablePoSaT(accounts[1])).to.be.bignumber.equal(new BN(50)); // Expected 50 PoSaT credits (delegated from accounts[0]) in accounts[1]

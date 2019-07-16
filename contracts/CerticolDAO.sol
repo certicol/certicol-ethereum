@@ -384,7 +384,7 @@ contract CerticolDAO is IERC777Recipient {
      */
     function tokensReceived(address, address from, address, uint256 amount, bytes calldata, bytes calldata) external DAOFunctional {
         // Only accept inward ERC-777 transaction if it is the CDT token
-        require(msg.sender == address(_CDT), "CDAO: we only accept CDT token");
+        require(msg.sender == address(_CDT), "CerticolDAO: we only accept CDT token");
         // Modify the internal state upon receiving the tokens
         _tokensLocked[from] = _tokensLocked[from].add(amount);
         _votingRights[from] = _votingRights[from].add(amount);
@@ -428,7 +428,7 @@ contract CerticolDAO is IERC777Recipient {
         // Check if total voting rights delegated after operation would exceeds the amount of tokens
         require(
             _delegatedNetVotingRights[msg.sender].add(amount) <= _tokensLocked[msg.sender],
-            "CDAO: insufficient voting rights or secondary delegation is not permitted"
+            "CerticolDAO: insufficient voting rights or secondary delegation is not permitted"
         );
         // Transfer voting rights to delegate
         _votingRights[msg.sender] = _votingRights[msg.sender].sub(amount);
@@ -472,7 +472,7 @@ contract CerticolDAO is IERC777Recipient {
         // Check if total PoSaT delegated after operation would exceeds the amount of tokens
         require(
             _delegatedNetPoSaT[msg.sender].add(amount) <= _tokensLocked[msg.sender],
-            "CDAO: insufficient PoSaT credits or secondary delegation is not permitted"
+            "CerticolDAO: insufficient PoSaT credits or secondary delegation is not permitted"
         );
         // Transfer free PoSaT credits to delegate
         _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].sub(amount);
