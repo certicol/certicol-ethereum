@@ -1,7 +1,7 @@
 {
 	"name": "certicol-ethereum",
 	"version": "0.1.0",
-	"description": "Ethereum contract for Certicol",
+	"description": "Certicol implementation in Ethereum",
 	"main": "index.js",
 	"scripts": {
 		"test": "run-p test:** --race --silent --aggregate-output",
@@ -24,7 +24,7 @@
 	},
 	"keywords": [
 		"ethereum",
-		"certtify"
+		"certicol"
 	],
 	"author": "Ken Sze",
 	"license": "Apache-2.0",
