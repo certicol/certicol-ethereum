@@ -4,6 +4,7 @@ import './ICerticolCA.sol';
 import './ICerticolDAOToken.sol';
 
 import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 import 'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol';
 import 'openzeppelin-solidity/contracts/token/ERC777/IERC777Recipient.sol';
 import 'openzeppelin-solidity/contracts/introspection/IERC1820Registry.sol';
@@ -39,6 +40,8 @@ contract CerticolDAO is IERC777Recipient {
     ICerticolDAOToken private _CDT;
     /// ERC-20 interface of the CDT token
     IERC20 private _CDT_ERC20;
+    /// Ownable interface of the CDT token
+    Ownable private _CDT_Ownable;
     /// CerticolCA interface
     ICerticolCA private _CA;
 
@@ -91,6 +94,11 @@ contract CerticolDAO is IERC777Recipient {
     /// Cumulative PoSaT credits ratio required in O10 who have voted confidence to grant ring 1 status
     uint256 private _ringOneRequirement = 25;
 
+    // Mapping that stored all used one-time seed used in previous O5 command to prevent reuse of those signatures
+    mapping(uint256 => bool) private _usedOneTimeSeeds;
+    /// Boolean that store whether this DAO is currently active
+    bool private _DAODissolved = false;
+
     /// Event that will be emitted when tokens are received and locked within this contract
     event TokensLocked(address indexed tokenHolder, uint256 amount);
     /// Event that will be emitted when locked tokens are withdrawl
@@ -116,6 +124,21 @@ contract CerticolDAO is IERC777Recipient {
     /// Event emitted when O10 revoke the vote of confidence
     event O10RevokeVoteConfidence(address indexed O10, address indexed target, uint256 PoSaTUnlocked);
 
+    /// Event emitted when O5 is authorized
+    event O5Authorized(string indexed functionSignatureIndex, string functionSignature, address[5] O5, uint256 cumulativeVote);
+    /// Event emitted when O5 amends the cumulative PoSaT credits ratio required in O10 who have voted confidence to grant ring 1 status
+    event O5AmendRingOneRequirement(uint256 effectiveFrom, uint256 amended);
+    /// Event emitted when O5 amends the PoSaT reward requirement
+    event O5AmendPoSaTRewardRequirement(uint256 effectiveFrom, uint256 amended);
+    /// Event emitted when O5 amends the Proof-of-Stake-as-Trust reward ratio
+    event O5AmendPoSaTReward(uint256 effectiveFrom, uint256 amended);
+    /// Event emitted when O5 amends the CDT token requirement for O10 vote of confidence
+    event O5AmendVoCRequirement(uint256 effectiveFrom, uint256 amended);
+    /// Event emitted when O5 amends the CDT token requirement for granting O10 authorization
+    event O5AmendO10Requirement(uint256 effectiveFrom, uint256 amended);
+    /// Event emitted when O5 dissolve this DAO
+    event O5DissolvedDAO(uint256 effectiveFrom);
+
     /**
      * @notice Initialize the CerticolDAO contract
      * @param tokenAddress address the address of the deployed CerticolDAOToken contract
@@ -127,6 +150,7 @@ contract CerticolDAO is IERC777Recipient {
         // Initialize CDT token interface
         _CDT = ICerticolDAOToken(tokenAddress);
         _CDT_ERC20 = IERC20(tokenAddress);
+        _CDT_Ownable = Ownable(tokenAddress);
         // Initialize O10 requirements
         _O10Requirement = _CDT_ERC20.totalSupply().div(10);
         // Initialize CerticolCA interface
@@ -327,12 +351,38 @@ contract CerticolDAO is IERC777Recipient {
     }
 
     /**
+     * @notice Get if the given seed was already used in a previous O5 command
+     * @return bool true if the seed was used before, or false if otherwise
+     */
+    function getSeedUsed(uint256 seed) external view returns (bool) {
+        return _usedOneTimeSeeds[seed];
+    }
+
+    /**
+     * @notice Get if the current DAO has been dissolved
+     * @return bool true if the current DAO has been dissolved, or false if otherwise
+     */
+    function getDAODissolved() external view returns (bool) {
+        return _DAODissolved;
+    }
+
+    /**
+     * @notice Throws if O5 has dissolved this DAO
+     */
+    modifier DAOFunctional() {
+        // Require dissolved flag to be false
+        require(!_DAODissolved, "CerticolDAO: this function is no longer available since O5 has dissolved this DAO");
+        _;
+    }
+
+    /**
      * @notice Implements the IERC777Recipient interface to allow this contract to receive CDT token
      * @dev Any inward transaction of ERC-777 other than CDT token would be reverted
      * @param from address token holder address
      * @param amount uint256 amount of tokens to transfer
+     * @dev Reverts if O5 has dissolved the current DAO
      */
-    function tokensReceived(address, address from, address, uint256 amount, bytes calldata, bytes calldata) external {
+    function tokensReceived(address, address from, address, uint256 amount, bytes calldata, bytes calldata) external DAOFunctional {
         // Only accept inward ERC-777 transaction if it is the CDT token
         require(msg.sender == address(_CDT), "CDAO: we only accept CDT token");
         // Modify the internal state upon receiving the tokens
@@ -349,8 +399,9 @@ contract CerticolDAO is IERC777Recipient {
      * @dev This function will only proceeds if the msg.sender owns 1 voting rights and 1 free PoSaT credit per 1 token withdrawl,
      * and would otherwise reverts
      * @param amount uint256 amount of tokens to withdraw
+     * @dev Reverts if O5 has dissolved the current DAO
      */
-    function withdrawToken(uint256 amount) external {
+    function withdrawToken(uint256 amount) external DAOFunctional {
         // Subtract amount from _votingRights and _availablePoSaT
         _votingRights[msg.sender] = _votingRights[msg.sender].sub(amount);
         _availablePoSaT[msg.sender] = _availablePoSaT[msg.sender].sub(amount);
@@ -371,8 +422,9 @@ contract CerticolDAO is IERC777Recipient {
      * to avoid secondary delegation
      * @param delegate address address of the delegate
      * @param amount uint256 amount of voting rights to delegate
+     * @dev Reverts if O5 has dissolved the current DAO
      */
-    function delegateVotingRights(address delegate, uint256 amount) external {
+    function delegateVotingRights(address delegate, uint256 amount) external DAOFunctional {
         // Check if total voting rights delegated after operation would exceeds the amount of tokens
         require(
             _delegatedNetVotingRights[msg.sender].add(amount) <= _tokensLocked[msg.sender],
@@ -393,8 +445,9 @@ contract CerticolDAO is IERC777Recipient {
      * @dev This function will reverts if amount > voting rights delegated to the delegate
      * @param delegate address address of the delegate
      * @param amount uint256 amount of delegated voting rights to withdraw from the delegate
+     * @dev Reverts if O5 has dissolved the current DAO
      */
-    function withdrawDelegatedVotingRights(address delegate, uint256 amount) external {
+    function withdrawDelegatedVotingRights(address delegate, uint256 amount) external DAOFunctional {
         // Reduce the amount from _delegatedVotingRights and _delegatedNetVotingRights
         // This will also revert if amount exceeds the voting rights initially delegated
         _delegatedVotingRights[msg.sender][delegate] = _delegatedVotingRights[msg.sender][delegate].sub(amount);
@@ -413,8 +466,9 @@ contract CerticolDAO is IERC777Recipient {
      * to avoid secondary delegation
      * @param delegate address address of the delegate
      * @param amount uint256 amount of voting rights to delegate
+     * @dev Reverts if O5 has dissolved the current DAO
      */
-    function delegatePoSaT(address delegate, uint256 amount) external {
+    function delegatePoSaT(address delegate, uint256 amount) external DAOFunctional {
         // Check if total PoSaT delegated after operation would exceeds the amount of tokens
         require(
             _delegatedNetPoSaT[msg.sender].add(amount) <= _tokensLocked[msg.sender],
@@ -436,8 +490,9 @@ contract CerticolDAO is IERC777Recipient {
      * or if the delegate does not have the required FREE PoSaT credits
      * @param delegate address address of the delegate
      * @param amount uint256 amount of delegated voting rights to withdraw from the delegate
+     * @dev Reverts if O5 has dissolved the current DAO
      */
-    function withdrawDelegatedPoSaT(address delegate, uint256 amount) external {
+    function withdrawDelegatedPoSaT(address delegate, uint256 amount) external DAOFunctional {
         // Reduce the amount from _delegatedPoSaT and _delegatedNetPoSaT
         // This will also revert if amount exceeds the PoSaT credits initially delegated
         _delegatedPoSaT[msg.sender][delegate] = _delegatedPoSaT[msg.sender][delegate].sub(amount);
@@ -461,10 +516,11 @@ contract CerticolDAO is IERC777Recipient {
 
     /**
      * @notice Lock _O10Requirement PoSaT credits and grants msg.sender O10 authorization
+     * @dev Reverts if O5 has dissolved the current DAO
      * @dev Reverts if msg.sender does not have sufficient available PoSaT credits
      * @dev Reverts if msg.sender have O10 authorization already
      */
-    function O10Authorization() external {
+    function O10Authorization() external DAOFunctional {
         // Check if msg.sender already have O10 authorization
         require(!getO10Status(msg.sender), "CerticolDAO: msg.sender already owned a valid O10 authorization");
         // Lock _O10Requirement PoSaT credits
@@ -478,11 +534,12 @@ contract CerticolDAO is IERC777Recipient {
 
     /**
      * @notice Revoke msg.sender O10 authorization and unlock locked PoSaT credits
+     * @dev Reverts if O5 has dissolved the current DAO
      * @dev Reverts if msg.sender do not have O10 authorization already
      * @dev Reverts if msg.sender still have active PoSaT VoC issued currently
      * @dev O10 can ONLY be deauthorized after all PoSaT VoC issued by msg.sender has been revoked
      */
-    function O10Deauthorization() external O10Only {
+    function O10Deauthorization() external DAOFunctional O10Only {
         // Check if msg.sender still has any active PoSaT VoC
         require(getActiveVoCIssued(msg.sender) == 0, "CerticolDAO: msg.sender still has active PoSaT VoC");
         // Unlock _O10Requirement PoSaT credits
@@ -498,11 +555,12 @@ contract CerticolDAO is IERC777Recipient {
     /**
      * @notice Lock required amounts of PoSaT credits and vote confidence toward target
      * @param target address the address to be voted confidence on
+     * @dev Reverts if O5 has dissolved the current DAO
      * @dev Reverts if msg.sender do not have O10 authorization already
      * @dev Reverts if msg.sender have already voted confidence toward target
      * @dev Reverts if msg.sender do not have sufficient available PoSaT credits
      */
-    function O10VoteConfidence(address target) external O10Only {
+    function O10VoteConfidence(address target) external DAOFunctional O10Only {
         // Check if msg.sender has already voted confidence toward target
         require(!getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has already voted confidence toward target");
         // Subtract required PoSaT credits from msg.sender
@@ -521,12 +579,13 @@ contract CerticolDAO is IERC777Recipient {
     /**
      * @notice Get PoSaT reward from a vote of confidence issued to target
      * @param target address the address that msg.sender have voted confidence on, and would like to get the PoSaT reward from the vote
+     * @dev Reverts if O5 has dissolved the current DAO
      * @dev Reverts if msg.sender do not have O10 authorization already
      * @dev Reverts if msg.sender have not voted confidence toward target
      * @dev Reverts if the vote has not been sustained for a minimum of _posatRewardRequirement blocks
      * @dev Reverts if the target has not sustained ring 2 status from CerticolCA for a minimum of _posatRewardRequirement blocks
      */
-    function O10GetReward(address target) external O10Only {
+    function O10GetReward(address target) external DAOFunctional O10Only {
         // Check if msg.sender has actually voted confidence toward target
         require(getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has not voted confidence toward target");
         // Check if the vote has sustained for _posatRewardRequirement blocks
@@ -554,10 +613,11 @@ contract CerticolDAO is IERC777Recipient {
     /**
      * @notice Revoke vote of confidence and unlock the locked PoSaT credits
      * @param target address the address that msg.sender have voted confidence on, and would like to revoke the vote
+     * @dev Reverts if O5 has dissolved the current DAO
      * @dev Reverts if msg.sender do not have O10 authorization already
      * @dev Reverts if msg.sender have not voted confidence toward target
      */
-    function O10RevokeVote(address target) external O10Only {
+    function O10RevokeVote(address target) external DAOFunctional O10Only {
         // Check if msg.sender has actually voted confidence toward target
         require(getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has not voted confidence toward target");
         // Delete reverse vote entry in _vocReverseRecords
@@ -584,6 +644,156 @@ contract CerticolDAO is IERC777Recipient {
      */
     function tempBackdoor() external {
         _posatRewardRequirement = 10;
+    }
+
+    /**
+     * @notice O5 authorization check
+     * @param fnSignature string the function signature
+     * @param amendedValue uint256 the new PoSaT reward requirement
+     * @param effectiveBlock uint256 the block number signed by O5 members in signature
+     * @param oneTimeSeed uint256 an one-time seed used to prevent reuse of published signatures
+     * @param v uint[5] v component of up to 5 signatures
+     * @param r bytes32[5] r component of up to 5 signatures
+     * @param s bytes32[5] s component of up to 5 signatures
+     * @dev Reverts if effectiveBlock > block.number, which indicate the signature has already expired
+     * @dev Reverts if cumulative voting rights in all signatures did not exceeds 50% of all voting rights
+     */
+    modifier O5Only(
+        string memory fnSignature, uint256 amendedValue, uint256 effectiveBlock,
+        uint256 oneTimeSeed, uint8[5] memory v, bytes32[5] memory r, bytes32[5] memory s
+    ) {
+        // Check if signature would still be valid (i.e. effectiveBlock > block.number)
+        require(effectiveBlock > block.number, "CerticolDAO: signature has expired");
+        // Check if oneTimeSeed was used in the past
+        require(!_usedOneTimeSeeds[oneTimeSeed], "CerticolDAO: the seed was already used");
+        // Ethereum signature prefix
+        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
+        // Expected message to be signed would be sha3(fnSignature, amendedValue, effectiveBlock, oneTimeSeed)
+        bytes32 expectedMessage = keccak256(abi.encodePacked(fnSignature, amendedValue, effectiveBlock, oneTimeSeed));
+        // Expected actual hash signed to be sha3(prefix, message)
+        bytes32 expectedHash = keccak256(abi.encodePacked(prefix, expectedMessage));
+        // List of O5s that have voted this authorization
+        address[5] memory O5s;
+        // Cumulative voting rights that has signed the message
+        uint256 netVotingRights = 0;
+        // Loop through v, r, s arrays to recover signing address and sum their voting right
+        for (uint256 i = 0; i<5; i++) {
+            // Extract address of the voter
+            address O5 = ecrecover(expectedHash, v[i], r[i], s[i]);
+            // Process only if O5 is not address(0)
+            if (O5 != address(0)) {
+                // Record to the list of O5s
+                O5s[i] = O5;
+                // Adds to cumulative voting rights
+                netVotingRights = netVotingRights.add(_votingRights[O5]);
+            }
+        }
+        // Check if cumulative voting rights exceeds 50% of total voting rights
+        require(
+            netVotingRights >= _cumulativeTokenLocked.div(2),
+            "CerticolDAO: cumulative voting rights did not exceeds 50% of total voting rights"
+        );
+        // Updated used seed mapping
+        _usedOneTimeSeeds[oneTimeSeed] = true;
+        // Emit O5Authorized
+        emit O5Authorized(fnSignature, fnSignature, O5s, netVotingRights);
+        // Proceed if true
+        _;
+    }
+
+    /**
+     * @notice O5 command to modify CerticolDAO variables
+     * @param effectiveBlock uint256 the block number signed by O5 members in signature
+     * @param oneTimeSeed uint256 an one-time seed used to prevent reuse of published signatures
+     * @param v uint[5] v component of up to 5 signatures
+     * @param r bytes32[5] r component of up to 5 signatures
+     * @param s bytes32[5] s component of up to 5 signatures
+     * @param fnSignature string command string that correspond to the variable to be modified
+     * @param amendedValue uint256 the new ring one requirement
+     * @dev Reverts if O5 check failed
+     */
+    function O5Modify(
+        uint256 effectiveBlock, uint256 oneTimeSeed,
+        uint8[5] calldata v, bytes32[5] calldata r, bytes32[5] calldata s,
+        string calldata fnSignature, uint256 amendedValue
+    ) external O5Only(fnSignature, amendedValue, effectiveBlock, oneTimeSeed, v, r, s) {
+        bytes32 fnSignatureHash = keccak256(abi.encodePacked(fnSignature));
+        if (fnSignatureHash == keccak256(abi.encodePacked("O5ModifyRingOneRequirement"))) {
+            // Change the ring one requirement
+            _ringOneRequirement = amendedValue;
+            // Emit O5AmendRingOneRequirement
+            emit O5AmendRingOneRequirement(block.number, amendedValue);
+        }
+        else if (fnSignatureHash == keccak256(abi.encodePacked("O5ModifyPoSaTRequirement"))) {
+            // Change the reward requirement
+            _posatRewardRequirement = amendedValue;
+            // Emit O5AmendPoSaTRewardRequirement
+            emit O5AmendPoSaTRewardRequirement(block.number, amendedValue);
+        }
+        else if (fnSignatureHash == keccak256(abi.encodePacked("O5ModifyPoSaTReward"))) {
+            // Change the PoSaT reward ratio
+            _posatRewardRatio = amendedValue;
+            // Emit O5AmendPoSaTReward
+            emit O5AmendPoSaTReward(block.number, amendedValue);
+        }
+        else if (fnSignatureHash == keccak256(abi.encodePacked("O5ModifyVoCRequirement"))) {
+            // Change the VoC Requirement
+            _vocRequirement = amendedValue;
+            // Emit O5AmendVoCRequirement
+            emit O5AmendVoCRequirement(block.number, amendedValue);
+        }
+        else if (fnSignatureHash == keccak256(abi.encodePacked("O5ModifyO10Requirement"))) {
+            // Change the O10 Requirement
+            _O10Requirement = amendedValue;
+            // Emit O5AmendO10Requirement
+            emit O5AmendO10Requirement(block.number, amendedValue);
+        }
+        else {
+            return;
+        }
+    }
+
+    /**
+     * @notice O5 command to dissolve CerticolDAO
+     * @param effectiveBlock uint256 the block number signed by O5 members in signature
+     * @param oneTimeSeed uint256 an one-time seed used to prevent reuse of published signatures
+     * @param v uint[5] v component of up to 5 signatures
+     * @param r bytes32[5] r component of up to 5 signatures
+     * @param s bytes32[5] s component of up to 5 signatures
+     * @dev Reverts if O5 check failed
+     * @dev Upon dissolving of CerticolDAO, the ownership of CerticolDAOToken would be transferred to msg.sender
+     * @dev All standard DAO function will also revert after this operation
+     * @dev An additional withdrawl function that allows all locked token to be withdrawl will also be opened
+     */
+    function O5DissolveDAO(
+        uint256 effectiveBlock, uint256 oneTimeSeed,
+        uint8[5] calldata v, bytes32[5] calldata r, bytes32[5] calldata s
+    ) external O5Only("O5DissolveDAO", 0, effectiveBlock, oneTimeSeed, v, r, s) {
+        // Set dissolved falg
+        _DAODissolved = true;
+        // Transfer ownership of CerticolDAOToken
+        _CDT_Ownable.transferOwnership(msg.sender);
+        // Emit O5DissolvedDAO
+        emit O5DissolvedDAO(block.number);
+    }
+
+    /**
+     * @notice Allow the withdrawl of all token locked in this contract after O5 has dissolved this DAO
+     * @dev Reverts if this DAO has not been dissolved
+     */
+    function dissolveWithdrawl() external {
+        // Require dissolved flag
+        require(_DAODissolved, "CerticolDAO: this function is only available if O5 has dissolved this DAO");
+        // Get total amount of token locked by msg.sender
+        uint256 tokenLocked = _tokensLocked[msg.sender];
+        // Reset tokensLocked mapping
+        _tokensLocked[msg.sender] = 0;
+        // Reduce cumulative token locked respectively
+        _cumulativeTokenLocked = _cumulativeTokenLocked.sub(tokenLocked);
+        // Emit TokensUnlocked
+        emit TokensUnlocked(msg.sender, tokenLocked);
+        // Withdraw all token locked
+        _CDT_ERC20.transfer(msg.sender, tokenLocked);
     }
 
 }
