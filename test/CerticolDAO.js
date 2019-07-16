@@ -434,6 +434,32 @@ contract('CerticolDAO', function(accounts) {
             });
         }
 
+        // Function to extract v, r, s value from a signature
+        // Copied from https://github.com/ethereum/web3.js/blob/2.x/packages/web3-utils/src/Utils.js
+        var getSignatureParameters = function(signature) {
+            const r = signature.slice(0, 66);
+            const s = `0x${signature.slice(66, 130)}`;
+            let v = `0x${signature.slice(130, 132)}`;
+            v = web3.utils.hexToNumber(v);
+            if (![27, 28].includes(v)) v += 27;
+            return {
+                r,
+                s,
+                v
+            };
+        };
+        // Function for signing O5 command and return a signature
+        var sign = async function(fnSignature, amendedValue, blockNumber, oneTimeSeed) {
+            // Generate the message expected by the O5 function - keccak256(fnSignature, amendedValue, blockNumber, oneTimeSeed)
+            let hash = web3.utils.soliditySha3(
+                {type: 'string', value: fnSignature},
+                {type: 'uint256', value: amendedValue},
+                {type: 'uint256', value: blockNumber},
+                {type: 'uint256', value: oneTimeSeed}
+            );
+            return getSignatureParameters(await web3.eth.sign(hash, accounts[0])); // Sign the message using accounts[0] and extract v, r, s components
+        }
+
         // Send addressValid some ether for testing
         before(async function() {
             web3.eth.sendTransaction({
@@ -644,7 +670,20 @@ contract('CerticolDAO', function(accounts) {
                 contractInstance = await CerticolDAO.new(tokenInstance.address, caInstance.address); // Deploy DAO contract
                 await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
                 await tokenInstance.transfer(contractInstance.address, TOKEN_LOCKED, { from: accounts[0] }); // 66% tokens is locked from accounts[0] into the contract
-                await contractInstance.tempBackdoor({ from: accounts[0] }); // Use backdoor to modify PoSaT block requirement to 10, will be replaced later
+                const fnSignature = 'O5ModifyPoSaTRequirement'; // Function signature to modify PoSaT requirement
+                const blockNumber = await web3.eth.getBlockNumber() + 100; // Signature effective until current block + 100
+                const newPoSaTRequirement = 10; // Target new PoSaT requirement
+                const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
+                // Sign the O5ModifyPoSaTRequirement command
+                let signature = await sign(fnSignature, newPoSaTRequirement, blockNumber, oneTimeSeed);
+                // Send the transaction to modify the PoSaT block requirement
+                await contractInstance.O5Modify(
+                    blockNumber, oneTimeSeed,
+                    [signature.v, 0, 0, 0, 0],
+                    [signature.r, '0x', '0x', '0x', '0x'],
+                    [signature.s, '0x', '0x', '0x', '0x'],
+                    fnSignature, newPoSaTRequirement
+                );
                 await contractInstance.O10Authorization({ from: accounts[0] }); // Obtain O10 authorization which should succeed
                 await contractInstance.O10VoteConfidence(addressValid, { from: accounts[0] }); // Vote confidence on addressValid
             });
@@ -747,7 +786,20 @@ contract('CerticolDAO', function(accounts) {
                 await contractInstance.O10Authorization({ from: accounts[3] }); // Obtain O10 authorization for accounts[3] which should succeed
                 await contractInstance.O10Authorization({ from: accounts[4] }); // Obtain O10 authorization for accounts[4] which should succeed
                 await contractInstance.O10Authorization({ from: accounts[5] }); // Obtain O10 authorization for accounts[5] which should succeed
-                await contractInstance.tempBackdoor({ from: accounts[0] }); // Use backdoor to modify PoSaT block requirement to 10, will be replaced later
+                const fnSignature = 'O5ModifyPoSaTRequirement'; // Function signature to modify PoSaT requirement
+                const blockNumber = await web3.eth.getBlockNumber() + 100; // Signature effective until current block + 100
+                const newPoSaTRequirement = 10; // Target new PoSaT requirement
+                const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
+                // Sign the O5ModifyPoSaTRequirement command
+                let signature = await sign(fnSignature, newPoSaTRequirement, blockNumber, oneTimeSeed);
+                // Send the transaction
+                await contractInstance.O5Modify(
+                    blockNumber, oneTimeSeed,
+                    [signature.v, 0, 0, 0, 0],
+                    [signature.r, '0x', '0x', '0x', '0x'],
+                    [signature.s, '0x', '0x', '0x', '0x'],
+                    fnSignature, newPoSaTRequirement
+                );
             });
 
             it('should default to ring 2 status without PoSaT vote', async function() {

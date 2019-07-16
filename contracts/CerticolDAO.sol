@@ -640,13 +640,6 @@ contract CerticolDAO is IERC777Recipient {
     }
 
     /**
-     * @notice Temporary backdoor used for testing
-     */
-    function tempBackdoor() external {
-        _posatRewardRequirement = 10;
-    }
-
-    /**
      * @notice O5 authorization check
      * @param fnSignature string the function signature
      * @param amendedValue uint256 the new PoSaT reward requirement
