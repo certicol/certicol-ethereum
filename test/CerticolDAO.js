@@ -79,6 +79,7 @@ contract('CerticolDAO', function(accounts) {
         it('should initialize O5-related getter functions', async function() {
             expect(await contractInstance.getSeedUsed(new BN(0))).to.be.false; // Expected seed to be unused
             expect(await contractInstance.getDAODissolved()).to.be.false; // Expected DAO to be NOT dissolved
+            expect(await contractInstance.getO5VoteNoConfidence(constants.ZERO_ADDRESS)).to.be.false; // Expected any account would not be voted no confidence by default
         });
 
     });
@@ -677,7 +678,7 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5ModifyPoSaTRequirement command
                 let signature = await sign(fnSignature, newPoSaTRequirement, blockNumber, oneTimeSeed);
                 // Send the transaction to modify the PoSaT block requirement
-                await contractInstance.O5Modify(
+                await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -793,7 +794,7 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5ModifyPoSaTRequirement command
                 let signature = await sign(fnSignature, newPoSaTRequirement, blockNumber, oneTimeSeed);
                 // Send the transaction
-                await contractInstance.O5Modify(
+                await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -901,7 +902,7 @@ contract('CerticolDAO', function(accounts) {
                 );
                 let signature = getSignatureParameters(await web3.eth.sign(hash, accounts[6])); // Sign the message using accounts[6] and extract v, r, s components
                 // Send the transaction
-                let tx = await contractInstance.O5Modify(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -943,7 +944,7 @@ contract('CerticolDAO', function(accounts) {
                     s.push(signature.s);
                 }
                 // Send the transaction
-                let tx = await contractInstance.O5Modify(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     v, r, s,
                     fnSignature, newPoSaTRequirement
@@ -986,7 +987,7 @@ contract('CerticolDAO', function(accounts) {
                 r.push('0x');
                 s.push('0x');
                 // Expect revert since only 50% - 1 token has signed it
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     v, r, s,
                     fnSignature, newPoSaTRequirement
@@ -1008,7 +1009,7 @@ contract('CerticolDAO', function(accounts) {
                 );
                 let signature = getSignatureParameters(await web3.eth.sign(hash, accounts[6])); // Sign the message using accounts[6] and extract v, r, s components
                 // Send the transaction which should succeed
-                await contractInstance.O5Modify(
+                await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1016,7 +1017,7 @@ contract('CerticolDAO', function(accounts) {
                     fnSignature, newPoSaTRequirement
                 );
                 // Sending it again should failed
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1039,7 +1040,7 @@ contract('CerticolDAO', function(accounts) {
                 );
                 let signature = getSignatureParameters(await web3.eth.sign(hash, accounts[6])); // Sign the message using accounts[6] and extract v, r, s components
                 // Sending an expired signature should failed
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1063,7 +1064,7 @@ contract('CerticolDAO', function(accounts) {
                 let signature = getSignatureParameters(await web3.eth.sign(hash, accounts[6])); // Sign the message using accounts[6] and extract v, r, s components
                 // Sending a mismatched blockNumber which should failed
                 const mismatchedBlockNumber = blockNumber + 100;
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     mismatchedBlockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1087,7 +1088,7 @@ contract('CerticolDAO', function(accounts) {
                 let signature = getSignatureParameters(await web3.eth.sign(hash, accounts[6])); // Sign the message using accounts[6] and extract v, r, s components
                 // Sending a mismatched newPoSaTRequirement which should failed
                 const mismatchedPoSaTRequirement = 200;
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1111,7 +1112,7 @@ contract('CerticolDAO', function(accounts) {
                 let signature = getSignatureParameters(await web3.eth.sign(hash, accounts[6])); // Sign the message using accounts[6] and extract v, r, s components
                 // Sending a mismatched oneTimeSeed which should failed
                 const mismatchSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER));
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, mismatchSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1150,7 +1151,7 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5ModifyRingOneRequirement command
                 let signature = await sign(fnSignature, newRingOneRequirement, blockNumber, oneTimeSeed);
                 // Send the transaction
-                let tx = await contractInstance.O5Modify(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1171,7 +1172,7 @@ contract('CerticolDAO', function(accounts) {
                 const newRingOneRequirement = 10; // Target new ring one requirement
                 const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
                 // Send the transaction
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [0, 0, 0, 0, 0],
                     ['0x', '0x', '0x', '0x', '0x'],
@@ -1189,7 +1190,7 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5ModifyPoSaTRequirement command
                 let signature = await sign(fnSignature, newPoSaTRequirement, blockNumber, oneTimeSeed);
                 // Send the transaction
-                let tx = await contractInstance.O5Modify(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1210,7 +1211,7 @@ contract('CerticolDAO', function(accounts) {
                 const newPoSaTRequirement = 100; // Target new PoSaT requirement
                 const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
                 // Send the transaction
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [0, 0, 0, 0, 0],
                     ['0x', '0x', '0x', '0x', '0x'],
@@ -1228,7 +1229,7 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5ModifyPoSaTReward command
                 let signature = await sign(fnSignature, newPoSaTReward, blockNumber, oneTimeSeed);
                 // Send the transaction
-                let tx = await contractInstance.O5Modify(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1249,7 +1250,7 @@ contract('CerticolDAO', function(accounts) {
                 const newPoSaTReward = 100; // Target new PoSaT reward
                 const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
                 // Send the transaction
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [0, 0, 0, 0, 0],
                     ['0x', '0x', '0x', '0x', '0x'],
@@ -1267,7 +1268,7 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5ModifyVoCRequirement command
                 let signature = await sign(fnSignature, newVoCReward, blockNumber, oneTimeSeed);
                 // Send the transaction
-                let tx = await contractInstance.O5Modify(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1288,7 +1289,7 @@ contract('CerticolDAO', function(accounts) {
                 const newVoCReward = 100000; // Target new vote of confidence requirement
                 const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
                 // Send the transaction
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [0, 0, 0, 0, 0],
                     ['0x', '0x', '0x', '0x', '0x'],
@@ -1306,7 +1307,7 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5ModifyO10Requirement command
                 let signature = await sign(fnSignature, newO10Reward, blockNumber, oneTimeSeed);
                 // Send the transaction
-                let tx = await contractInstance.O5Modify(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1327,7 +1328,7 @@ contract('CerticolDAO', function(accounts) {
                 const newO10Reward = INITIAL_SUPPLY.div(new BN(2)); // Target new O10 requirement
                 const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
                 // Send the transaction
-                await expectRevert(contractInstance.O5Modify(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [0, 0, 0, 0, 0],
                     ['0x', '0x', '0x', '0x', '0x'],
@@ -1345,7 +1346,7 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the invalid command
                 let signature = await sign(fnSignature, amendedValue, blockNumber, oneTimeSeed);
                 // Nothing should happened since the function signature is not recognized
-                let tx = await contractInstance.O5Modify(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
@@ -1385,11 +1386,12 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5DissolveDAO command
                 let signature = await sign(fnSignature, amendedValue, blockNumber, oneTimeSeed);
                 // Send the transaction
-                let tx = await contractInstance.O5DissolveDAO(
+                let tx = await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
-                    [signature.s, '0x', '0x', '0x', '0x']
+                    [signature.s, '0x', '0x', '0x', '0x'],
+                    fnSignature, amendedValue
                 );
                 // Expect O5DissolvedDAO event
                 expectEvent.inLogs(tx.logs, 'O5DissolvedDAO', { 
@@ -1400,14 +1402,17 @@ contract('CerticolDAO', function(accounts) {
             });
 
             it('should revert if non-O5 try dissolve DAO', async function() {
+                const fnSignature = 'O5DissolveDAO'; // Function signature
                 const blockNumber = await web3.eth.getBlockNumber() + 100; // Signature effective until current block + 100
                 const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
                 // Expect to fail since there are not enough supporting votes
-                await expectRevert(contractInstance.O5DissolveDAO(
+                await expectRevert(contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [0, 0, 0, 0, 0],
                     ['0x', '0x', '0x', '0x', '0x'],
-                    ['0x', '0x', '0x', '0x', '0x']
+                    ['0x', '0x', '0x', '0x', '0x'],
+                    fnSignature, 0
+
                 ), 'CerticolDAO: cumulative voting rights did not exceeds 50% of total voting rights');
                 expect(await tokenInstance.owner()).to.have.string(contractInstance.address); // Expect ownership of CerticolDAOToken to remain unchanged (CerticolDAO contract)
                 expect(await contractInstance.getDAODissolved()).to.be.false; // Expect DAO to NOT be dissolved after this operation
@@ -1421,11 +1426,12 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5DissolveDAO command
                 let signature = await sign(fnSignature, amendedValue, blockNumber, oneTimeSeed);
                 // Send the transaction and dissolve the DAO
-                await contractInstance.O5DissolveDAO(
+                await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
-                    [signature.s, '0x', '0x', '0x', '0x']
+                    [signature.s, '0x', '0x', '0x', '0x'],
+                    fnSignature, amendedValue
                 );
                 // Withdraw all locked tokens from accounts[0] which has deposited 60% of initial supply in beforeEach
                 let tx = await contractInstance.dissolveWithdrawl({ from: accounts[0] });
@@ -1471,11 +1477,12 @@ contract('CerticolDAO', function(accounts) {
                 // Sign the O5DissolveDAO command
                 let signature = await sign(fnSignature, amendedValue, blockNumber, oneTimeSeed);
                 // Send the transaction and dissolve the DAO
-                await contractInstance.O5DissolveDAO(
+                await contractInstance.O5Command(
                     blockNumber, oneTimeSeed,
                     [signature.v, 0, 0, 0, 0],
                     [signature.r, '0x', '0x', '0x', '0x'],
-                    [signature.s, '0x', '0x', '0x', '0x']
+                    [signature.s, '0x', '0x', '0x', '0x'],
+                    fnSignature, amendedValue
                 );
             });
 
@@ -1521,6 +1528,140 @@ contract('CerticolDAO', function(accounts) {
 
             it('should revert O10 revoke vote of confidence call after O5 has dissolved DAO', async function() {
                 await expectRevert(contractInstance.O10RevokeVote(constants.ZERO_ADDRESS), 'CerticolDAO: this function is no longer available since O5 has dissolved this DAO');
+            });
+
+        });
+
+        describe('O5 Vote of No Confidence', function() {
+
+            // Storing constant addresses from Provable-Domain for unit testing
+            var addressValid = '0x7A490a716f9033E3B3b51aBEAf579B54ecBffd23';
+            // Default gas price for Provable callback (10 GWei)
+            const GAS_PRICE = '10000000000';
+            // Function for obtaining ring 2 validation for addressValid
+            var obtainRingII = async function(caInstance) {
+                // Set the provider to WebsocketProvider to allow event subscription used in Ring 2 challenge
+                let currentHTTPProvider = web3.currentProvider.host;
+                caInstance.contract.setProvider(currentHTTPProvider.replace("http", "ws"));
+                // Obtain initial ring 2 validation for addressValid
+                await caInstance.ringThreeDeclaration(
+                    'TEST_NAME', 'TEST_EMAIL@EMAIL.COM', '852-9999-9999', 'SOME_RANDOM_ADDITIONAL_DATA',
+                    { from: addressValid }
+                );
+                await caInstance.ringTwoDeclaration(
+                    'https://raw.githubusercontent.com/certicol/provable-domain/master/test/html',
+                    { from: addressValid }
+                );
+                let receipt = await caInstance.ringTwoChallengeInit(addressValid, { from: accounts[2] });
+                let challengeId = receipt.logs[1].args.challengeId;
+                let cost = await caInstance.getProvableCost.call(GAS_PRICE);
+                await caInstance.ringTwoChallengeSolve(challengeId, { from: accounts[2], value: cost, gasPrice: GAS_PRICE });
+                await new Promise(function(resolve) {
+                    caInstance.contract.events.RingTwoChallengeResult(
+                        function(error) {
+                            if (error) { revert(error); }
+                            resolve();
+                        }
+                    );
+                });
+            }
+            // Function for voting no confidence using accounts[0] on addressValid
+            var voteNoConfidence = async function(contractInstance) {
+                const fnSignature = 'O5VoteNoConfidence'; // Function signature
+                const blockNumber = await web3.eth.getBlockNumber() + 100; // Signature effective until current block + 100
+                const amendedValue = addressValid; // Vote no confidence on addressValid
+                const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
+                // Sign the O5VoteNoConfidence command
+                let signature = await sign(fnSignature, amendedValue, blockNumber, oneTimeSeed);
+                // Send the transaction
+                await contractInstance.O5Command(
+                    blockNumber, oneTimeSeed,
+                    [signature.v, 0, 0, 0, 0],
+                    [signature.r, '0x', '0x', '0x', '0x'],
+                    [signature.s, '0x', '0x', '0x', '0x'],
+                    fnSignature, amendedValue
+                );
+            }
+
+            // Deploy the contract before each test
+            // A total of 60% of token is locked up in the contract
+            // Create an environment where accounts 2 - 5 each owns 12.5% of all voting rights (or 15% of all tokens), a total of 60% total tokens in total
+            // Note: accounts[2] has specificially 12.5% of all voting rights - 1 for testing purposes
+            // In addition, accounts[6] owns 50% of all voting rights, and accounts[0] owns valid O10 authorization
+            // Finally, addressValid holds valid ring II validation and was granted ring I validation by accounts[0]
+            beforeEach(async function() {
+                tokenInstance = await CerticolDAOToken.new(accounts[0], { from: accounts[1] }); // CDT token contract is deployed first
+                caInstance = await CerticolCATest.new({ from: accounts[1] }); // CerticolCA contract for testing, with reduced blocks expiration block for ring 2 validation
+                contractInstance = await CerticolDAO.new(tokenInstance.address, caInstance.address); // Deploy DAO contract
+                await tokenInstance.transferOwnership(contractInstance.address, { from: accounts[1] }); // Transfer ownership to the DAO
+                await tokenInstance.transfer(contractInstance.address, INITIAL_SUPPLY.mul(new BN(60)).div(new BN(100)), { from: accounts[0] }); // 60% tokens is locked from accounts[0] into the contract
+                await contractInstance.delegateVotingRights(accounts[2], INITIAL_SUPPLY.mul(new BN(75)).div(new BN(1000)).sub(new BN(1)), { from: accounts[0] }); // Delegate 12.5% - 1 voting rights (12.5% * 60% = 7.5% of initial supply) to accounts[2]
+                await contractInstance.delegateVotingRights(accounts[3], INITIAL_SUPPLY.mul(new BN(75)).div(new BN(1000)), { from: accounts[0] }); // Delegate 12.5% voting rights (12.5% * 60% = 7.5% of initial supply) to accounts[3]
+                await contractInstance.delegateVotingRights(accounts[4], INITIAL_SUPPLY.mul(new BN(75)).div(new BN(1000)), { from: accounts[0] }); // Delegate 12.5% voting rights (12.5% * 60% = 7.5% of initial supply) to accounts[4]
+                await contractInstance.delegateVotingRights(accounts[5], INITIAL_SUPPLY.mul(new BN(75)).div(new BN(1000)), { from: accounts[0] }); // Delegate 12.5% voting rights (12.5% * 60% = 7.5% of initial supply) to accounts[5]
+                await contractInstance.delegateVotingRights(accounts[6], INITIAL_SUPPLY.mul(new BN(30)).div(new BN(100)), { from: accounts[0] }); // Delegate 50% voting rights (50% * 60% = 30% of initial supply) to accounts[6]
+                await contractInstance.O10Authorization({ from: accounts[0] }); // Gain valid O10 authorization for accounts[0]
+                await obtainRingII(caInstance); // Obtain ring II validation for addressValid
+                await contractInstance.O10VoteConfidence(addressValid, { from: accounts[0] }); // Vote confidence from accounts[0]
+            });
+
+            it('should allow O5 to issue vote of no confidence', async function() {
+                const fnSignature = 'O5VoteNoConfidence'; // Function signature
+                const blockNumber = await web3.eth.getBlockNumber() + 100; // Signature effective until current block + 100
+                const amendedValue = addressValid; // Vote no confidence on addressValid
+                const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
+                // Sign the O5VoteNoConfidence command
+                let signature = await sign(fnSignature, amendedValue, blockNumber, oneTimeSeed);
+                // Send the transaction
+                let tx = await contractInstance.O5Command(
+                    blockNumber, oneTimeSeed,
+                    [signature.v, 0, 0, 0, 0],
+                    [signature.r, '0x', '0x', '0x', '0x'],
+                    [signature.s, '0x', '0x', '0x', '0x'],
+                    fnSignature, amendedValue
+                );
+                // Expect O5VotedNoConfidence event
+                expectEvent.inLogs(tx.logs, 'O5VotedNoConfidence', { 
+                    target: addressValid
+                });
+                expect(await contractInstance.getO5VoteNoConfidence(addressValid)).to.be.true; // Expect addressValid to be voted no confidence
+            });
+
+            it('should revert if non-O5 try to issue vote of no confidence', async function() {
+                const fnSignature = 'O5VoteNoConfidence'; // Function signature
+                const blockNumber = await web3.eth.getBlockNumber() + 100; // Signature effective until current block + 100
+                const amendedValue = addressValid; // Vote no confidence on addressValid
+                const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER)); // Generate one-time seed
+                // Send the transaction without signature which should failed
+                await expectRevert(contractInstance.O5Command(
+                    blockNumber, oneTimeSeed,
+                    [0, 0, 0, 0, 0],
+                    ['0x', '0x', '0x', '0x', '0x'],
+                    ['0x', '0x', '0x', '0x', '0x'],
+                    fnSignature, amendedValue
+                ), 'CerticolDAO: cumulative voting rights did not exceeds 50% of total voting rights');
+                expect(await contractInstance.getO5VoteNoConfidence(addressValid)).to.be.false; // Expect addressValid to NOT be voted no confidence
+            });
+
+            it('should revert O10 vote confidence request once target was voted no confidence by O5', async function() {
+                await voteNoConfidence(contractInstance); // Vote no confidence using accounts[0]
+                await expectRevert(contractInstance.O10VoteConfidence(addressValid), 'CerticolDAO: O5 has voted no confidence toward the target'); // Expect fail after O5 vote of no confidence
+            });
+
+            it('should revert O10 get reward request once target was voted no confidence by O5', async function() {
+                await voteNoConfidence(contractInstance); // Vote no confidence using accounts[0]
+                await expectRevert(contractInstance.O10GetReward(addressValid), 'CerticolDAO: O5 has voted no confidence toward the target'); // Expect fail after O5 vote of no confidence
+            });
+
+            it('should revert O10 revoke vote request once target was voted no confidence by O5', async function() {
+                await voteNoConfidence(contractInstance); // Vote no confidence using accounts[0]
+                await expectRevert(contractInstance.O10RevokeVote(addressValid), 'CerticolDAO: O5 has voted no confidence toward the target'); // Expect fail after O5 vote of no confidence
+            });
+
+            it('should return ring 4 status regardless of prior validation status once target was voted no confidence by O5', async function() {
+                expect(await contractInstance.getCurrentRing(addressValid)).to.be.bignumber.equal(new BN(1)); // Expect ring 1 status originally
+                await voteNoConfidence(contractInstance); // Vote no confidence using accounts[0]
+                expect(await contractInstance.getCurrentRing(addressValid)).to.be.bignumber.equal(new BN(4)); // Expect ring 4 status afterward
             });
 
         });
