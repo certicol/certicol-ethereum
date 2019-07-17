@@ -98,6 +98,8 @@ contract CerticolDAO is IERC777Recipient {
     mapping(uint256 => bool) private _usedOneTimeSeeds;
     /// Boolean that store whether this DAO is currently active
     bool private _DAODissolved = false;
+    // Mapping that stored record of vote of confidence issued by O5 command
+    mapping(address => bool) private _O5VoteNoConfidence;
 
     /// Event that will be emitted when tokens are received and locked within this contract
     event TokensLocked(address indexed tokenHolder, uint256 amount);
@@ -138,6 +140,8 @@ contract CerticolDAO is IERC777Recipient {
     event O5AmendO10Requirement(uint256 effectiveFrom, uint256 amended);
     /// Event emitted when O5 dissolve this DAO
     event O5DissolvedDAO(uint256 effectiveFrom);
+    /// Event emitted when O5 voted no confidence toward target
+    event O5VotedNoConfidence(address indexed target);
 
     /**
      * @notice Initialize the CerticolDAO contract
@@ -323,8 +327,14 @@ contract CerticolDAO is IERC777Recipient {
      * @return uint256 either 1, 2, 3 or 4 which corresponds to the ring of validation
      * @dev Ring one validation is granted if target owns a valid ring 2 status
      * @dev And, in addition, cumulative PoSaT credits owned by O10 who have voted confidence > _ringOneRequirement of total supply
+     * @dev If O5 has voted no confidence toward target, only 4 would be returned
      */
     function getCurrentRing(address target) external view returns (uint256) {
+        // Check if O5 has voted no confidence
+        if (_O5VoteNoConfidence[target]) {
+            // Return 4 if O5 has voted no confidence
+            return 4;
+        }
         // Get ring 2 - 4 validation status from CerticolCA
         (uint256 ring,,) = _CA.getStatus(target);
         // Return ring 3 - 4 validation status since no further computation is required
@@ -364,6 +374,15 @@ contract CerticolDAO is IERC777Recipient {
      */
     function getDAODissolved() external view returns (bool) {
         return _DAODissolved;
+    }
+
+    /**
+     * @notice Get whether O5 has voted no confidence toward target
+     * @param target address the address to be queried
+     * @return boolean true if O5 has voted no confidence, false if not
+     */
+    function getO5VoteNoConfidence(address target) external view returns (bool) {
+        return _O5VoteNoConfidence[target];
     }
 
     /**
@@ -515,6 +534,14 @@ contract CerticolDAO is IERC777Recipient {
     }
 
     /**
+     * @notice Throws if O5 has voted no confidence toward target
+     */
+    modifier O5NotVotedNoConfidence(address target) {
+        require(!_O5VoteNoConfidence[target], "CerticolDAO: O5 has voted no confidence toward the target");
+        _;
+    }
+
+    /**
      * @notice Lock _O10Requirement PoSaT credits and grants msg.sender O10 authorization
      * @dev Reverts if O5 has dissolved the current DAO
      * @dev Reverts if msg.sender does not have sufficient available PoSaT credits
@@ -556,11 +583,12 @@ contract CerticolDAO is IERC777Recipient {
      * @notice Lock required amounts of PoSaT credits and vote confidence toward target
      * @param target address the address to be voted confidence on
      * @dev Reverts if O5 has dissolved the current DAO
+     * @dev Reverts if O5 has voted no confidence on target
      * @dev Reverts if msg.sender do not have O10 authorization already
      * @dev Reverts if msg.sender have already voted confidence toward target
      * @dev Reverts if msg.sender do not have sufficient available PoSaT credits
      */
-    function O10VoteConfidence(address target) external DAOFunctional O10Only {
+    function O10VoteConfidence(address target) external DAOFunctional O5NotVotedNoConfidence(target) O10Only {
         // Check if msg.sender has already voted confidence toward target
         require(!getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has already voted confidence toward target");
         // Subtract required PoSaT credits from msg.sender
@@ -580,12 +608,13 @@ contract CerticolDAO is IERC777Recipient {
      * @notice Get PoSaT reward from a vote of confidence issued to target
      * @param target address the address that msg.sender have voted confidence on, and would like to get the PoSaT reward from the vote
      * @dev Reverts if O5 has dissolved the current DAO
+     * @dev Reverts if O5 has voted no confidence on target
      * @dev Reverts if msg.sender do not have O10 authorization already
      * @dev Reverts if msg.sender have not voted confidence toward target
      * @dev Reverts if the vote has not been sustained for a minimum of _posatRewardRequirement blocks
      * @dev Reverts if the target has not sustained ring 2 status from CerticolCA for a minimum of _posatRewardRequirement blocks
      */
-    function O10GetReward(address target) external DAOFunctional O10Only {
+    function O10GetReward(address target) external DAOFunctional O5NotVotedNoConfidence(target) O10Only {
         // Check if msg.sender has actually voted confidence toward target
         require(getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has not voted confidence toward target");
         // Check if the vote has sustained for _posatRewardRequirement blocks
@@ -614,10 +643,11 @@ contract CerticolDAO is IERC777Recipient {
      * @notice Revoke vote of confidence and unlock the locked PoSaT credits
      * @param target address the address that msg.sender have voted confidence on, and would like to revoke the vote
      * @dev Reverts if O5 has dissolved the current DAO
+     * @dev Reverts if O5 has voted no confidence on target
      * @dev Reverts if msg.sender do not have O10 authorization already
      * @dev Reverts if msg.sender have not voted confidence toward target
      */
-    function O10RevokeVote(address target) external DAOFunctional O10Only {
+    function O10RevokeVote(address target) external DAOFunctional O5NotVotedNoConfidence(target) O10Only {
         // Check if msg.sender has actually voted confidence toward target
         require(getVoCFrom(target, msg.sender), "CerticolDAO: msg.sender has not voted confidence toward target");
         // Delete reverse vote entry in _vocReverseRecords
@@ -701,11 +731,11 @@ contract CerticolDAO is IERC777Recipient {
      * @param v uint[5] v component of up to 5 signatures
      * @param r bytes32[5] r component of up to 5 signatures
      * @param s bytes32[5] s component of up to 5 signatures
-     * @param fnSignature string command string that correspond to the variable to be modified
+     * @param fnSignature string O5 command string
      * @param amendedValue uint256 the new ring one requirement
      * @dev Reverts if O5 check failed
      */
-    function O5Modify(
+    function O5Command(
         uint256 effectiveBlock, uint256 oneTimeSeed,
         uint8[5] calldata v, bytes32[5] calldata r, bytes32[5] calldata s,
         string calldata fnSignature, uint256 amendedValue
@@ -741,33 +771,25 @@ contract CerticolDAO is IERC777Recipient {
             // Emit O5AmendO10Requirement
             emit O5AmendO10Requirement(block.number, amendedValue);
         }
+        else if (fnSignatureHash == keccak256(abi.encodePacked("O5DissolveDAO"))) {
+            // Set dissolved falg
+            _DAODissolved = true;
+            // Transfer ownership of CerticolDAOToken
+            _CDT_Ownable.transferOwnership(msg.sender);
+            // Emit O5DissolvedDAO
+            emit O5DissolvedDAO(block.number);
+        }
+        else if (fnSignatureHash == keccak256(abi.encodePacked("O5VoteNoConfidence"))) {
+            // Cast uint256 back to address
+            address target = address(amendedValue);
+            // Update the _O5VoteNoConfidence mapping
+            _O5VoteNoConfidence[target] = true;
+            // Emit O5VotedNoConfidence
+            emit O5VotedNoConfidence(target);
+        }
         else {
             return;
         }
-    }
-
-    /**
-     * @notice O5 command to dissolve CerticolDAO
-     * @param effectiveBlock uint256 the block number signed by O5 members in signature
-     * @param oneTimeSeed uint256 an one-time seed used to prevent reuse of published signatures
-     * @param v uint[5] v component of up to 5 signatures
-     * @param r bytes32[5] r component of up to 5 signatures
-     * @param s bytes32[5] s component of up to 5 signatures
-     * @dev Reverts if O5 check failed
-     * @dev Upon dissolving of CerticolDAO, the ownership of CerticolDAOToken would be transferred to msg.sender
-     * @dev All standard DAO function will also revert after this operation
-     * @dev An additional withdrawl function that allows all locked token to be withdrawl will also be opened
-     */
-    function O5DissolveDAO(
-        uint256 effectiveBlock, uint256 oneTimeSeed,
-        uint8[5] calldata v, bytes32[5] calldata r, bytes32[5] calldata s
-    ) external O5Only("O5DissolveDAO", 0, effectiveBlock, oneTimeSeed, v, r, s) {
-        // Set dissolved falg
-        _DAODissolved = true;
-        // Transfer ownership of CerticolDAOToken
-        _CDT_Ownable.transferOwnership(msg.sender);
-        // Emit O5DissolvedDAO
-        emit O5DissolvedDAO(block.number);
     }
 
     /**
