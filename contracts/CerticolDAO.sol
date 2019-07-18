@@ -703,6 +703,14 @@ contract CerticolDAO is IERC777Recipient {
         for (uint256 i = 0; i<5; i++) {
             // Extract address of the voter
             address O5 = ecrecover(expectedHash, v[i], r[i], s[i]);
+            // Ensure no repeated signature is submitted
+            for (uint256 j = 0; j < i; j++) {
+                if (O5 == O5s[j]) {
+                    // Repeated signature found, reset O5 to address(0) as no processing is required
+                    O5 = address(0);
+                    break;
+                }
+            }
             // Process only if O5 is not address(0)
             if (O5 != address(0)) {
                 // Record to the list of O5s
