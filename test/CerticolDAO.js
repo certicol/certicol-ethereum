@@ -1121,6 +1121,77 @@ contract('CerticolDAO', function(accounts) {
                 ), 'CerticolDAO: cumulative voting rights did not exceeds 50% of total voting rights');
             });
 
+            it('should revert if cumulative voting rights did not exceeds 50% of total voting rights after exlcuding double-count signatures from the same address', async function() {
+                const fnSignature = 'O5ModifyPoSaTRequirement'; // Function signature of O5ModifyPoSaTRequirement, we are using this for testing
+                const blockNumber = await web3.eth.getBlockNumber() + 100; // Signature effective until current block + 100
+                const newPoSaTRequirement = 100; // Target new PoSaT requirement to be 100
+                const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER));
+                // Generate the message expected by the O5 function - keccak256(fnSignature, amendedValue, blockNumber, oneTimeSeed)
+                let hash = web3.utils.soliditySha3(
+                    {type: 'string', value: fnSignature},
+                    {type: 'uint256', value: newPoSaTRequirement},
+                    {type: 'uint256', value: blockNumber},
+                    {type: 'uint256', value: oneTimeSeed}
+                );
+                // Array storing signature components
+                v = [];
+                r = [];
+                s = [];
+                let signature = getSignatureParameters(await web3.eth.sign(hash, accounts[2])); // Sign the message using only accounts[2]
+                // Reuse the same signature 5 times
+                for (i=0; i<5; i++) {
+                    v.push(signature.v);
+                    r.push(signature.r);
+                    s.push(signature.s);
+                }
+                // Send the transaction
+                await expectRevert(contractInstance.O5Command(
+                    blockNumber, oneTimeSeed,
+                    v, r, s,
+                    fnSignature, newPoSaTRequirement
+                ), 'CerticolDAO: cumulative voting rights did not exceeds 50% of total voting rights');
+            });
+
+            it('should allow O5 authorization if cumulative voting rights exceeds 50% of total voting rights after exlcuding double-count signatures from the same address', async function() {
+                const fnSignature = 'O5ModifyPoSaTRequirement'; // Function signature of O5ModifyPoSaTRequirement, we are using this for testing
+                const blockNumber = await web3.eth.getBlockNumber() + 100; // Signature effective until current block + 100
+                const newPoSaTRequirement = 100; // Target new PoSaT requirement to be 100
+                const oneTimeSeed = Math.floor(Math.random() * Math.floor(Number.MAX_SAFE_INTEGER));
+                // Generate the message expected by the O5 function - keccak256(fnSignature, amendedValue, blockNumber, oneTimeSeed)
+                let hash = web3.utils.soliditySha3(
+                    {type: 'string', value: fnSignature},
+                    {type: 'uint256', value: newPoSaTRequirement},
+                    {type: 'uint256', value: blockNumber},
+                    {type: 'uint256', value: oneTimeSeed}
+                );
+                // Array storing signature components
+                v = [];
+                r = [];
+                s = [];
+                let signature = getSignatureParameters(await web3.eth.sign(hash, accounts[6])); // Sign the message using only accounts[6]
+                // Reuse the same signature 5 times
+                for (i=0; i<5; i++) {
+                    v.push(signature.v);
+                    r.push(signature.r);
+                    s.push(signature.s);
+                }
+                // Send the transaction
+                let tx = await contractInstance.O5Command(
+                    blockNumber, oneTimeSeed,
+                    v, r, s,
+                    fnSignature, newPoSaTRequirement
+                );
+                // Expect O5Authorized event
+                expectEvent.inLogs(tx.logs, 'O5Authorized', { 
+                    functionSignatureIndex: web3.utils.soliditySha3({type: 'string', value: fnSignature}),
+                    functionSignature: fnSignature,
+                    cumulativeVote: INITIAL_SUPPLY.mul(new BN(30)).div(new BN(100))
+                });
+                let O5AuthorizedEvents = tx.logs.filter(e => e.event === 'O5Authorized');
+                expect(O5AuthorizedEvents[0].args.O5).to.have.ordered.members([ accounts[6], constants.ZERO_ADDRESS, constants.ZERO_ADDRESS, constants.ZERO_ADDRESS, constants.ZERO_ADDRESS ]);
+                expect(await contractInstance.getSeedUsed(oneTimeSeed)).to.be.true; // Expect one time seed to be used now
+            });
+
         });
 
         describe('O5 Modify Commands', function() {
