@@ -5,7 +5,7 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "run-p test:** --race --silent --aggregate-output",
-		"test:env": "testrpc-sc --port 9545 --gasLimit 0x6691b7 --gasPrice 0x01 --defaultBalanceEther 1000000 --unlock 0x7A490a716f9033E3B3b51aBEAf579B54ecBffd23 0xe3A6F7295890382b2215A81Da25A1a30F99E391d",
+		"test:env": "testrpc-sc --port 9545 --gasLimit 0x7A1200 --gasPrice 0x01 --defaultBalanceEther 1000000 --unlock 0x7A490a716f9033E3B3b51aBEAf579B54ecBffd23 0xe3A6F7295890382b2215A81Da25A1a30F99E391d",
 		"test:provable-bridge": "run-s test-provable-bridge:delay test-provable-bridge:core --silent",
 		"test-provable-bridge:delay": "sleep 10",
 		"test-provable-bridge:core": "ethereum-bridge -H localhost:9545 -a 9 --dev --loglevel error",
@@ -37,6 +37,7 @@
 		"ethereum-bridge": "^0.6.2",
 		"npm-run-all": "^4.1.5",
 		"openzeppelin-test-helpers": "^0.4.0",
+		"rlp": "2.2.3",
 		"solidity-coverage": "0.6.0-beta.5",
 		"truffle": "^5.0.25"
 	}
