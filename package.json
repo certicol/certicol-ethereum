@@ -20,7 +20,17 @@
 		"coverage-provable-bridge:core": "ethereum-bridge -H localhost:8555 -a 9 --dev --loglevel error",
 		"coverage:test": "run-s coverage-test:delay coverage-test:core --silent",
 		"coverage-test:delay": "sleep 70",
-		"coverage-test:core": "solidity-coverage"
+		"coverage-test:core": "solidity-coverage",
+		"ropsten": "run-s ropsten:dryrun ropsten:live",
+		"ropsten:dryrun": "run-p ropsten:dryrun:** --race --silent",
+		"ropsten:dryrun:chain": "ganache-cli --fork https://ropsten.infura.io/v3/YOUR-PROJECT-ID --port 8545 --gasLimit 0x7A1200 --quiet",
+		"ropsten:dryrun:core": "truffle migrate --network dryrun --reset",
+		"ropsten:live": "truffle migrate --network ropsten",
+		"mainnet": "run-s mainnet:dryrun mainnet:live",
+		"mainnet:dryrun": "run-p mainnet:dryrun:** --race --silent",
+		"mainnet:dryrun:chain": "ganache-cli --fork https://mainnet.infura.io/v3/YOUR-PROJECT-ID --port 8545 --gasLimit 0x7A1200 --quiet",
+		"mainnet:dryrun:core": "truffle migrate --network dryrun --reset",
+		"mainnet:live": "truffle migrate --network mainnet"
 	},
 	"keywords": [
 		"ethereum",
@@ -38,8 +48,11 @@
 		"ganache-cli": "^6.5.0",
 		"npm-run-all": "^4.1.5",
 		"openzeppelin-test-helpers": "^0.4.0",
+		"ora": "^3.4.0",
 		"rlp": "^2.2.3",
 		"solidity-coverage": "0.6.0-beta.5",
-		"truffle": "^5.0.25"
+		"truffle": "^5.0.25",
+		"truffle-hdwallet-provider": "^1.0.14",
+		"web3": "^1.2.0"
 	}
 }
