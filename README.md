@@ -1,5 +1,8 @@
 # Certicol Ethereum Implementation
 
+[![Build Status](https://travis-ci.org/certicol/certicol-ethereum.svg?branch=master)](https://travis-ci.org/certicol/certicol-ethereum)
+[![Coverage Status](https://coveralls.io/repos/github/certicol/certicol-ethereum/badge.svg?branch=master)](https://coveralls.io/github/certicol/certicol-ethereum?branch=master)
+
 This repository store the code for the implementation of Certicol protocol in the form of Ethereum smart contract.
 
 Contracts are developed with reference to [openzeppelin-solidity](https://github.com/OpenZeppelin/openzeppelin-solidity).
