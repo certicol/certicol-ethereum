@@ -83,7 +83,7 @@ async function getGST1(network) {
     else if (network == 'dryrun') {
         // Instead of using the pre-deployed contract, we found that deploying one locally allow more reliable freeing for testing
         // Deploy GasToken.io contract onto the testnet
-        var spinner = ora('Redeploying GasToken.io (GST1) on testchain').start();
+        var spinner = ora('Redeploying GasToken.io (GST1) on testnet').start();
         let web3 = getWeb3(network);
         let tx = await web3.eth.sendTransaction({
             from: contractDeployer,
@@ -95,7 +95,7 @@ async function getGST1(network) {
         // Mint GST1 equivalent to GST1 token owned by contractDeployer in main chain on this testnet
         let deployedGSTContractMain = new web3.eth.Contract(GasTokenABI, '0x88d60255f917e3eb94eae199d827dad837fac4cb');
         let tokenToMint = await deployedGSTContractMain.methods.balanceOf(contractDeployer).call();
-        spinner.text = 'Minting ' + tokenToMint + ' in testchain GasToken.io contract...';
+        spinner.text = 'Minting ' + tokenToMint + ' GST1 in testnet GasToken.io contract...';
         let deployedGSTContract = new web3.eth.Contract(GasTokenABI, deployedGSTAddress);
         let gasCost = await deployedGSTContract.methods.mint(100).estimateGas({ from: contractDeployer });
         while (tokenToMint > 0) {
@@ -135,12 +135,12 @@ async function approveGST1(web3, gasTokenContract, deployerAccount, token_to_fre
     // Predict the contract address once it was deployed
     // Nonce is set as current_nonce + 1 as we need 1 transaction to approve the contract from using the minted token
     let deployAddress = getContractAddress(deployerAccount, await web3.eth.getTransactionCount(deployerAccount) + 1);
-    const spinner = ora('Authorizing ' + deployAddress + ' to spend up to ' + token_to_free + ' GST1 from ' + deployAddress).start();
+    const spinner = ora('Authorizing ' + deployAddress + ' to spend up to ' + token_to_free + ' GST1 from ' + deployerAccount).start();
     // Estimage gas cost for approval call
     let approveGasCost = await gasTokenContract.methods.approve(deployAddress, token_to_free).estimateGas({ from: deployerAccount });
     // Approve the predicted contract address to free up to token_to_free GST1
     await gasTokenContract.methods.approve(deployAddress, token_to_free).send({ from: deployerAccount, gas: approveGasCost, gasPrice: gasPrice });
-    spinner.succeed('Authorized ' + deployAddress + ' to spend up to ' + token_to_free + ' GST1 from ' + deployAddress);
+    spinner.succeed('Authorized ' + deployAddress + ' to spend up to ' + token_to_free + ' GST1 from ' + deployerAccount);
 }
 
 // Deployment definition
