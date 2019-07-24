@@ -68,9 +68,9 @@ contract('CerticolDAOTokenDeployer', function(accounts) {
         // Nonce is set as current_nonce + 1 as we need 1 transaction to approve the contract from using the minted token
         let deployAddress = getContractAddress(accounts[0], await web3.eth.getTransactionCount(accounts[0]) + 1);
         // Estimage gas cost for approval call
-        let approveGasCost = await GasTokenContract.methods.approve(deployAddress, 168).estimateGas({ from: accounts[0] });
-        // Approve the predicted contract address to free up to 168 GST1
-        await GasTokenContract.methods.approve(deployAddress, 168).send({ from: accounts[0], gas: approveGasCost });
+        let approveGasCost = await GasTokenContract.methods.approve(deployAddress, 172).estimateGas({ from: accounts[0] });
+        // Approve the predicted contract address to free up to 172 GST1
+        await GasTokenContract.methods.approve(deployAddress, 172).send({ from: accounts[0], gas: approveGasCost });
         // Deploy using CerticolDAOTokenDeployer and obtain the gas used
         let contract = await CerticolDAOTokenDeployer.new(GasTokenAddress, accounts[1], { from: accounts[0], gas: BLOCK_GAS_LIMIT });
         let receipt = await web3.eth.getTransactionReceipt(contract.transactionHash);
@@ -93,6 +93,63 @@ contract('CerticolDAOTokenDeployer', function(accounts) {
             CerticolDAOTokenDeployer.new(GasTokenAddress, accounts[1], { from: accounts[0], gas: BLOCK_GAS_LIMIT }),
             'CerticolCADeployer: unable to free the pre-defined GST1'
         );
+    });
+
+    it('should own CerticolDAOToken.sol right after deployment', async function() {
+        // Predict the contract address once it was deployed
+        // Nonce is set as current_nonce + 1 as we need 1 transaction to approve the contract from using the minted token
+        let deployAddress = getContractAddress(accounts[0], await web3.eth.getTransactionCount(accounts[0]) + 1);
+        // Estimage gas cost for approval call
+        let approveGasCost = await GasTokenContract.methods.approve(deployAddress, 172).estimateGas({ from: accounts[0] });
+        // Approve the predicted contract address to free up to 172 GST1
+        await GasTokenContract.methods.approve(deployAddress, 172).send({ from: accounts[0], gas: approveGasCost });
+        // Deploy using CerticolDAOTokenDeployer
+        let deployerContract = await CerticolDAOTokenDeployer.new(GasTokenAddress, accounts[1], { from: accounts[0], gas: BLOCK_GAS_LIMIT });
+        // Predict the address of the deployed CerticolDAOToken contract
+        let tokenAddress = getContractAddress(deployAddress, 1);
+        // Assert CerticolDAOToken contract is owned by CerticolDAOTokenDeployer
+        let tokenContract = new web3.eth.Contract(CerticolDAOToken._json.abi, tokenAddress);
+        expect(await tokenContract.methods.owner().call()).to.have.string(deployerContract.address);
+    });
+
+    it('should be able transfer ownership of CerticolDAOToken.sol', async function() {
+        // Predict the contract address once it was deployed
+        // Nonce is set as current_nonce + 1 as we need 1 transaction to approve the contract from using the minted token
+        let deployAddress = getContractAddress(accounts[0], await web3.eth.getTransactionCount(accounts[0]) + 1);
+        // Estimage gas cost for approval call
+        let approveGasCost = await GasTokenContract.methods.approve(deployAddress, 172).estimateGas({ from: accounts[0] });
+        // Approve the predicted contract address to free up to 172 GST1
+        await GasTokenContract.methods.approve(deployAddress, 172).send({ from: accounts[0], gas: approveGasCost });
+        // Deploy using CerticolDAOTokenDeployer
+        let deployerContract = await CerticolDAOTokenDeployer.new(GasTokenAddress, accounts[1], { from: accounts[0], gas: BLOCK_GAS_LIMIT });
+        // Transfer ownership to accounts[0]
+        let tx = await deployerContract.transferTokenOwnership(accounts[0]);
+        // Predict the address of the deployed CerticolDAOToken contract
+        let tokenAddress = getContractAddress(deployAddress, 1);
+        // Assert CerticolDAOToken contract is owned by accounts[0] after transferal
+        let tokenContract = new web3.eth.Contract(CerticolDAOToken._json.abi, tokenAddress);
+        expect(await tokenContract.methods.owner().call()).to.have.string(accounts[0]);
+    });
+
+    it('should do nothing if transferTokenOwnership is called again after initial transferal', async function() {
+        // Predict the contract address once it was deployed
+        // Nonce is set as current_nonce + 1 as we need 1 transaction to approve the contract from using the minted token
+        let deployAddress = getContractAddress(accounts[0], await web3.eth.getTransactionCount(accounts[0]) + 1);
+        // Estimage gas cost for approval call
+        let approveGasCost = await GasTokenContract.methods.approve(deployAddress, 172).estimateGas({ from: accounts[0] });
+        // Approve the predicted contract address to free up to 172 GST1
+        await GasTokenContract.methods.approve(deployAddress, 172).send({ from: accounts[0], gas: approveGasCost });
+        // Deploy using CerticolDAOTokenDeployer
+        let deployerContract = await CerticolDAOTokenDeployer.new(GasTokenAddress, accounts[1], { from: accounts[0], gas: BLOCK_GAS_LIMIT });
+        // Transfer ownership to accounts[0]
+        await deployerContract.transferTokenOwnership(accounts[0]);
+        // Transfer ownership again which should silently failed
+        let tx = await deployerContract.transferTokenOwnership(accounts[1]);
+        // Predict the address of the deployed CerticolDAOToken contract
+        let tokenAddress = getContractAddress(deployAddress, 1);
+        // Assert CerticolDAOToken contract is still owned by accounts[0]
+        let tokenContract = new web3.eth.Contract(CerticolDAOToken._json.abi, tokenAddress);
+        expect(await tokenContract.methods.owner().call()).to.have.string(accounts[0]);
     });
 
 });
