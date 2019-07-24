@@ -100,12 +100,12 @@ async function getGST1(network) {
         let gasCost = await deployedGSTContract.methods.mint(100).estimateGas({ from: contractDeployer });
         while (tokenToMint > 0) {
             if (tokenToMint > 100) {
-                await deployedGSTContract.methods.mint(100).send({ from: contractDeployer, gas: gasCost, gasPrice: gasPrice });
+                await deployedGSTContract.methods.mint(100).send({ from: contractDeployer, gas: gasCost, gasPrice: 1 });
                 tokenToMint -= 100;
                 spinner.text = tokenToMint + ' GST1 left to mint...';
             }
             else {
-                await deployedGSTContract.methods.mint(tokenToMint).send({ from: contractDeployer, gas: gasCost, gasPrice: gasPrice });
+                await deployedGSTContract.methods.mint(tokenToMint).send({ from: contractDeployer, gas: gasCost, gasPrice: 1 });
                 tokenToMint = 0;
             }
         }
